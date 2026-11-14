@@ -370,3 +370,12 @@ ul.plain li { margin: 6px 0; }
 .info:hover, .info:focus { z-index: 60; }
 .metric, .bar-row, .score-box, .insight > div, .findings p { position: relative; }
 .metric:hover, .metric:focus-within, .bar-row:hover, .bar-row:focus-within, .score-box:hover, .score-box:focus-within, .insight > div:hover, .insight > div:focus-within { z-index: 40; }
+
+.res-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.res-list li { display: grid; grid-template-columns: 26px minmax(200px, 330px) 1fr; gap: 10px; align-items: baseline; font-size: 13.5px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.res-list li:last-child { border-bottom: 0; }
+.res-list i { font-style: normal; font-weight: 700; color: var(--lime); }
+.res-list li.unused i, .res-list li.unused b { color: var(--muted); }
+.res-list b { font-family: var(--font-head); font-weight: 500; }
+.res-list span { color: #C6D0DB; }
+@media (max-width: 860px) { .res-list li { grid-template-columns: 22px 1fr; } .res-list span { grid-column: 2; } }

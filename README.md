@@ -1,4 +1,4 @@
-# NOVA TERRA LABS · Earth Analogue Program
+# NovaTerra Labs · Earth Analogue Program
 
 **Understanding Earth to prepare for exploration beyond it.**
 
@@ -6,7 +6,7 @@ Our answer to the NASA International Space Apps Challenge 2026 challenge *"Ident
 
 We measure terrain and climate at 13 places on Earth and at two planetary targets — the **Shackleton crater rim near the lunar south pole** (a candidate Artemis base region) and **Jezero crater on Mars** (Perseverance landing site) — and score how alike they are, with one method and open data only.
 
-**Live app:** `https://<github-user>.github.io/nova-terra-labs/` *(enable GitHub Pages, see below)*
+**Live app:** https://rlostaunau-create.github.io/nova-terra-labs/
 
 ## What the app shows
 
@@ -56,7 +56,7 @@ docs/                      Methodology and data sources
 
 1. Repository → **Settings** → **Pages**.
 2. *Source*: **Deploy from a branch**. *Branch*: **main**, folder **/ (root)** → **Save**.
-3. After 1–2 minutes the app is live at `https://<github-user>.github.io/nova-terra-labs/`.
+3. After 1–2 minutes the app is live at https://rlostaunau-create.github.io/nova-terra-labs/.
 
 ## Regenerate the data
 
@@ -68,6 +68,18 @@ python tools/compact_viewers.py <viewer-folder> data/terrain
 python tools/make_bundle.py data
 ```
 
+## Challenge resources used
+
+| Resource (Space Apps list) | Use in this project |
+|---|---|
+| ✅ NASA Planetary Data System (PDS) | LRO Diviner Polar Resource Product, read directly from the PDS archive |
+| ✅ NASA Lunar Reconnaissance Orbiter (LRO) | LOLA 5 m topography of the Shackleton rim (lunar target terrain) |
+| ✅ NASA LRO Diviner Lunar Data | Annual maximum and average temperatures at the lunar target |
+| ✅ NASA Worldview | Linked from every field log |
+| ✅ ESA Copernicus | Copernicus DEM GLO-30 (terrain) and Sentinel-2 L2A (imagery) |
+| ✅ NASA Earth science data | Climate from NASA POWER (MERRA-2, NASA GMAO), 2015–2024 |
+| – CSA RADARSAT, JAXA G-Portal, ESA Open Science Catalog | Not used in this version |
+
 ## Data sources
 
 Copernicus DEM GLO-30 (ESA) · NASA POWER (MERRA-2, NASA GMAO) · Sentinel-2 L2A (ESA/Copernicus) · USGS Mars 2020 CTX DTM (Jezero) · NASA LOLA high-resolution south-pole topography · LRO Diviner Polar Resource Product (NASA PDS) · Perseverance MEDA (published values) · NASA lunar environment report. Full list with DOIs in [docs/data-sources.md](docs/data-sources.md).
@@ -78,7 +90,10 @@ Copernicus DEM GLO-30 (ESA) · NASA POWER (MERRA-2, NASA GMAO) · Sentinel-2 L2A
 
 ## Team
 
-NOVA TERRA LABS — NASA International Space Apps Challenge 2026.
+**NovaTerra Labs** — NASA International Space Apps Challenge 2026
+
+- Fátima Herrera (team owner), Peru
+- Romy Lostaunau, Peru
 
 ## License
 

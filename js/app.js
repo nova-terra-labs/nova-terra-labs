@@ -1,4 +1,4 @@
-/* NOVA TERRA LABS — Earth Analogue Program front end.
+/* NovaTerra Labs — Earth Analogue Program front end.
    Static single-page app: hash routing, no build step.
    Data: data/sites.json (pipeline output) + data/site_info.json (site texts). */
 (() => {
@@ -97,7 +97,7 @@
       a.classList.toggle("active", i === cur); a.classList.toggle("done", cur > -1 && i < cur);
     });
     const fl = document.querySelector('.mission-path [data-step="field"]'); if (fl && state.selected) fl.href = `#field-${state.selected}`;
-    document.title = route === "bridge" ? "NOVA TERRA LABS · Earth Analogue Program" : `${n[0] + n.slice(1).toLowerCase()} · NOVA TERRA LABS`;
+    document.title = route === "bridge" ? "NovaTerra Labs · Earth Analogue Program" : `${n[0] + n.slice(1).toLowerCase()} · NovaTerra Labs`;
   }
   function teardown() {
     if (state.globe) { try { state.globe._destructor && state.globe._destructor(); } catch (e) { /* ignore */ } state.globe = null; }
@@ -486,6 +486,19 @@
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { const el = document.getElementById("profile"); if (el && el.data) Plotly.relayout(el, {}); });
   }
 
+  // Resources listed by the challenge and how this project uses them
+  const CHALLENGE_RESOURCES = [
+    [true, "NASA Planetary Data System (PDS)", "LRO Diviner Polar Resource Product, read directly from the PDS archive."],
+    [true, "NASA Lunar Reconnaissance Orbiter (LRO)", "LOLA 5 m topography of the Shackleton rim (lunar target terrain)."],
+    [true, "NASA LRO Diviner Lunar Data", "Annual maximum and average temperatures at the lunar target."],
+    [true, "NASA Worldview", "Linked from every field log for the site's satellite time series."],
+    [true, "ESA Copernicus", "Copernicus DEM GLO-30 (terrain) and Sentinel-2 L2A true colour (imagery)."],
+    [true, "NASA Earth science data", "Climate from NASA POWER (MERRA-2, NASA GMAO), daily, 2015–2024."],
+    [false, "CSA RADARSAT · JAXA G-Portal · ESA Open Science Catalog", "Not used in this version."],
+  ];
+  const resourcesCard = () => `<div class="card panel"><h3>Challenge resources used <small>FROM THE SPACE APPS RESOURCE LIST</small></h3>
+    <ul class="res-list">${CHALLENGE_RESOURCES.map(([u, n, t]) => `<li class="${u ? "used" : "unused"}"><i>${u ? "✓" : "–"}</i><b>${n}</b><span>${t}</span></li>`).join("")}</ul></div>`;
+
   // ---------- Compare ----------
   function renderCompare() {
     const d = state.data;
@@ -531,6 +544,7 @@
             <li>Analysis area: ${d.analysis_area_km} × ${d.analysis_area_km} km per site; all terrain compared at ≈30 m.</li></ul></div>
         <div class="card panel"><h3>Known limitations</h3><ul class="plain">${d.known_limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>
       </div>
+      ${resourcesCard()}
       <div class="card panel"><h3>Data sources</h3><ul class="src-list">${Object.keys(d.sources).map(sourceItem).join("")}</ul></div>
       ${nextStep("02 Atlas", "Explore another site", "Go back to the globe and open any of the 13 field logs.", "#atlas", "Back to the Atlas")}
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((d.generated_utc || "").slice(0, 10))}</span></div>
@@ -554,7 +568,7 @@
     view.innerHTML = `
     <section class="page">
       <div class="about-hero panel">
-        <div class="eyebrow">About / NOVA TERRA LABS</div>
+        <div class="eyebrow">About / NovaTerra Labs</div>
         <h1 style="font-size:clamp(28px,2.6vw,42px);margin:10px 0 12px">Identify Earth locations that analog<br>the permanent Moon base locations and Mars.</h1>
         <p class="note" style="font-size:15px;max-width:820px">Our answer to the NASA International Space Apps Challenge 2026. We built an open, reproducible pipeline that measures terrain and climate on Earth and on two planetary targets — the Shackleton rim near the lunar south pole (a candidate Artemis base region) and Jezero crater on Mars (Perseverance landing site) — and scores how alike they are.</p>
         <div class="links"><a class="btn btn-primary" href="#atlas">Open the Atlas <span>→</span></a><a class="btn btn-secondary" href="#compare">See the rankings <span class="arrow">→</span></a></div>
@@ -565,7 +579,8 @@
         ${step("03", "Score similarity", "Four partial scores — slope, roughness, aridity and temperature range — combined into one 0–100 index with fixed weights.")}
         ${step("04", "Explore", "Globe, satellite close-ups, 3D terrain with Sentinel-2 colour, terrain profiles and full source list for every site.")}
       </div>
-      <div class="card panel"><h3>Team</h3><p class="note">NOVA TERRA LABS — NASA Space Apps Challenge 2026. Data pipeline developed in Google Colab (Python); this app is a static site with no build step, ready for GitHub Pages.</p></div>
+      ${resourcesCard()}
+      <div class="card panel"><h3>Team</h3><p class="note"><b>NovaTerra Labs</b> — NASA Space Apps Challenge 2026: Fátima Herrera (team owner) and Romy Lostaunau, Peru. Data pipeline developed in Google Colab (Python); this app is a static site with no build step, ready for GitHub Pages.</p></div>
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
     </section>`;
   }
