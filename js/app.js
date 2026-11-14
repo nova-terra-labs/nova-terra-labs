@@ -478,7 +478,7 @@
     if (t.terrain_profile) traces.push({ x: t.terrain_profile.distance_km, y: rel(t.terrain_profile.elevation_m), name: t.name.split(" — ")[0], mode: "lines", line: { color: BODY_COLOR[t.body], width: 2, dash: "dot" } });
     Plotly.newPlot("profile", traces, {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "#EAF0F5", family: "Inter" },
-      margin: { l: 56, r: 16, t: 10, b: 44 }, legend: { orientation: "h", y: 1.14, x: 0 },
+      margin: { l: 56, r: 16, t: 10, b: 44 }, legend: { orientation: "h", y: 1.14, x: 0, entrywidthmode: "pixels", entrywidth: 260 },
       xaxis: { title: { text: "Distance (km)" }, gridcolor: "rgba(130,147,165,.18)", zeroline: false },
       yaxis: { title: { text: "Height above lowest point (m)" }, gridcolor: "rgba(130,147,165,.18)", zeroline: false },
     }, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
