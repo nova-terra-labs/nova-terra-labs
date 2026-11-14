@@ -8,6 +8,8 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
   const view = $("#view");
+  const hasWebGL = (() => { try { const c = document.createElement("canvas"); return !!(window.WebGLRenderingContext && (c.getContext("webgl") || c.getContext("experimental-webgl"))); } catch (e) { return false; } })();
+  const noGL = (what) => `<div class="frame3d" style="display:grid;place-items:center;text-align:center;padding:30px"><p class="muted">${what} needs WebGL, which is turned off in this browser.<br>Try Chrome or Edge with hardware acceleration enabled.</p></div>`;
 
   const ICONS = {
     bridge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
@@ -26,6 +28,18 @@
     precip_annual_mm: ["Aridity (annual precipitation)", "mm"],
     temp_range_c: ["Daily temperature range", "°C"],
   };
+  const TIPS = {
+    score: "Similarity score (0–100): how close this site's terrain and climate are to its planetary target. 100 would mean identical on all four scored metrics.",
+    slope_mean_deg: "Mean steepness of the ground in the 10 × 10 km square. Drives rover traverses, landing safety and where a base can be built.",
+    roughness_m: "How bumpy the surface is at ~150 m scale, after removing the regional slope. Affects wheels, landing hazards and walking EVAs.",
+    precip_annual_mm: "Mean annual precipitation. Mars and the Moon have none, so drier sites score higher.",
+    temp_range_c: "Average day–night temperature swing. Tests materials, batteries and thermal control.",
+    elevation: "Mean height of the square. Context only; not part of the score.",
+    relief: "Difference between the highest and lowest point in the square. Context only.",
+    temps: "From NASA POWER daily data, 2015–2024. Context only.",
+    breaks: "The scored metric where this site differs most from the planetary target.",
+  };
+  const info = (k) => `<span class="info" tabindex="0" role="note" aria-label="${esc(TIPS[k])}" data-tip="${esc(TIPS[k])}">i</span>`;
   const COMPONENT_ORDER = ["slope_mean_deg", "roughness_m", "precip_annual_mm", "temp_range_c"];
   const BODY_COLOR = { Mars: "#FF7A45", Moon: "#00D9FF" };
 
@@ -77,6 +91,12 @@
     $("#topbar-name").textContent = n;
     $("#topbar-path").textContent = p;
     document.querySelectorAll("[data-route]").forEach((a) => a.classList.toggle("active", a.dataset.route === route));
+    const order = ["bridge", "atlas", "field", "compare"], cur = order.indexOf(route);
+    document.querySelectorAll(".mission-path [data-step]").forEach((a) => {
+      const i = order.indexOf(a.dataset.step);
+      a.classList.toggle("active", i === cur); a.classList.toggle("done", cur > -1 && i < cur);
+    });
+    const fl = document.querySelector('.mission-path [data-step="field"]'); if (fl && state.selected) fl.href = `#field-${state.selected}`;
     document.title = route === "bridge" ? "NOVA TERRA LABS · Earth Analogue Program" : `${n[0] + n.slice(1).toLowerCase()} · NOVA TERRA LABS`;
   }
   function teardown() {
@@ -84,6 +104,13 @@
     if (state.map) { state.map.remove(); state.map = null; }
     window.removeEventListener("resize", onGlobeResize);
   }
+
+  // "Next step" bar shown at the end of each screen
+  const nextStep = (step, title, text, href, label, id) => `
+    <div class="next-step panel">
+      <div><div class="eyebrow">Next step · ${step}</div><b>${title}</b><span>${text}</span></div>
+      <a class="btn btn-primary"${id ? ` id="${id}"` : ""} href="${href}">${label} <span>→</span></a>
+    </div>`;
 
   // ---------- Bridge ----------
   function renderBridge() {
@@ -102,6 +129,7 @@
         <div class="mission"><span class="mono">Mission 01</span><span>Find Earth. Understand what comes next.</span></div>
       </div>
       <div class="hud-top"><span class="hud-pill">EARTH / SOL III</span><span class="hud-pill">ORBITAL VIEW</span></div>
+      ${findings()}
       <div class="home-planet panel"><div class="mono">Home planet</div><div>Earth. Where it all begins.</div></div>
       <div>
         <div class="frontier-head"><span>CHOOSE YOUR NEXT FRONTIER</span><span class="lime">${sites().length} ANALOGUE SITES</span></div>
@@ -113,6 +141,20 @@
       </div>
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
     </section>`;
+  }
+  function findings() {
+    const row = (b) => { const s = ranked(b)[0]; return `
+      <a class="finding" href="#field-${s.id}">
+        <span class="tag ${b.toLowerCase()}">#1 ${b} analogue</span>
+        <b>${esc(s.info.short)}<small>${esc(s.country)}</small></b>
+        <span class="score">${fmt(s.similarity.score, 1)}</span><span class="go">→</span>
+      </a>`; };
+    return `<div class="findings panel">
+      <div class="eyebrow">Mission findings</div>
+      <p>Best Earth analogues, scored 0–100 on terrain and climate ${info("score")}</p>
+      ${row("Mars")}${row("Moon")}
+      <a class="see-all" href="#compare">See all ${sites().length} sites ranked →</a>
+    </div>`;
   }
   function frontier(name, kicker, desc, img, href, current) {
     return `<a class="frontier panel${current ? " current" : ""}" href="${href}">
@@ -153,6 +195,7 @@
       </div>
       <aside class="insight panel" id="insight" aria-live="polite"></aside>
       <div class="site-strip" id="site-strip"></div>
+      <div class="atlas-next">${nextStep("03 Field log", "Open the site's field log", "3D terrain, satellite image, climate and the full similarity breakdown.", "#field", "Open field log", "atlas-next-btn")}</div>
     </section>`;
     $("#body-chips").addEventListener("click", (e) => {
       const b = e.target.closest("[data-body]"); if (!b) return;
@@ -180,7 +223,6 @@
     renderInsight();
     if (state.globe) {
       state.globe.htmlElementsData(list);
-      state.globe.pointsData(list);
     }
   }
   function selectSite(id, fly) {
@@ -202,15 +244,18 @@
       <div><span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span> ${s.info.environment.map((e) => `<span class="tag" style="color:var(--muted)">${esc(e)}</span>`).join(" ")}</div>
       <div><div class="k">WHY IT MATTERS</div><p>${esc(s.info.why || s.name)}</p></div>
       <div><div class="k">EXPLORATION USE</div><p>${esc(s.info.use || "—")}</p></div>
-      <div><div class="k">WHERE THE ANALOGY BREAKS</div><p>${esc(breaksText(s))}</p></div>
-      <div class="score-box"><span><small>Similarity to ${esc(t.name.split(" — ")[0])}</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length} ${s.analog_of} analogues</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
+      <div><div class="k">WHERE THE ANALOGY BREAKS ${info("breaks")}</div><p>${esc(breaksText(s))}</p></div>
+      <div class="score-box"><span><small>Similarity to ${esc(t.name.split(" — ")[0])} ${info("score")}</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length} ${s.analog_of} analogues</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
       <a class="btn btn-primary" href="#field-${s.id}">View site <span>→</span></a>`;
+    const nb = $("#atlas-next-btn"); if (nb) nb.href = `#field-${s.id}`;
+    const fl = document.querySelector('.mission-path [data-step="field"]'); if (fl) fl.href = `#field-${s.id}`;
   }
   function onGlobeResize() {
     const el = $("#globe"); if (el && state.globe) state.globe.width(el.clientWidth).height(el.clientHeight);
   }
   function initGlobe() {
     const el = $("#globe");
+    if (!hasWebGL) { el.innerHTML = noGL("The 3D globe"); el.style.position = "static"; return; }
     if (typeof Globe !== "function") { el.innerHTML = '<p class="muted" style="padding:40px">3D globe unavailable in this browser.</p>'; return; }
     try {
       const g = Globe()(el)
@@ -221,7 +266,7 @@
         .pointLat("lat").pointLng("lon").pointAltitude(0.012).pointRadius(0.55)
         .pointColor((s) => BODY_COLOR[s.analog_of])
         .onPointClick((s) => selectSite(s.id, true))
-        .htmlLat("lat").htmlLng("lon").htmlAltitude(0.02)
+        .htmlLat("lat").htmlLng("lon").htmlAltitude(0.005)
         .htmlElement((s) => {
           const d = document.createElement("div");
           d.className = "globe-label" + (s.id === state.selected ? " sel" : "");
@@ -262,7 +307,7 @@
           <div class="coords">${esc(s.country)} · ${fmt(s.lat, 4)}°, ${fmt(s.lon, 4)}° · ${state.data.analysis_area_km} × ${state.data.analysis_area_km} km square</div>
         </div>
         <span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span>
-        <div class="score-box" style="min-width:230px"><span><small>Similarity score</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length}</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
+        <div class="score-box" style="min-width:230px"><span><small>Similarity score ${info("score")}</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length}</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
         <select id="site-select" aria-label="Choose site">${["Mars", "Moon"].map((b) => `<optgroup label="${b} analogues">${ranked(b).map((x) => `<option value="${x.id}"${x.id === s.id ? " selected" : ""}>${esc(x.info.short)} · ${fmt(x.similarity.score, 1)}</option>`).join("")}</optgroup>`).join("")}</select>
       </div>
 
@@ -271,7 +316,7 @@
           <h3>3D terrain <small>COPERNICUS DEM 30 M · SENTINEL-2 TRUE COLOUR${s.imagery && s.imagery.date ? " · " + esc(s.imagery.date) : ""}</small></h3>
           <div id="viewer-slot"></div>
         </div>
-        <div class="card panel">
+        <div class="card panel map-card">
           <h3>Satellite close-up <small>SENTINEL-2 TRUE COLOUR IN THE ANALYSIS SQUARE · ESRI CONTEXT</small></h3>
           <div id="map" class="map"></div>
           <div class="links">
@@ -285,26 +330,26 @@
         <div class="card panel">
           <h3>Site metrics <small>SITE · ${esc(t.body.toUpperCase())} TARGET</small></h3>
           <div class="metrics">
-            ${metric("Mean elevation", m("elevation_mean_m"), "m", mv(t, "elevation_mean_m"), 0)}
-            ${metric("Relief (max − min)", m("elevation_max_m") - m("elevation_min_m"), "m", mv(t, "elevation_max_m") - mv(t, "elevation_min_m"), 0)}
-            ${metric("Mean slope", m("slope_mean_deg"), "°", mv(t, "slope_mean_deg"))}
-            ${metric("Roughness", m("roughness_m"), "m", mv(t, "roughness_m"))}
-            ${metric("Daily temperature range", m("temp_range_c"), "°C", mv(t, "temp_range_c"))}
-            ${metric("Annual precipitation", m("precip_annual_mm"), "mm", mv(t, "precip_annual_mm"))}
-            ${metric("Mean daily max / min", null, "", null, 2, `${fmt(m("temp_max_mean_c"))} / ${fmt(m("temp_min_mean_c"))} °C`)}
-            ${metric("Absolute min / max", null, "", null, 2, `${fmt(m("temp_abs_min_c"))} / ${fmt(m("temp_abs_max_c"))} °C`)}
+            ${metric("Mean elevation" + info("elevation"), m("elevation_mean_m"), "m", mv(t, "elevation_mean_m"), 0)}
+            ${metric("Relief (max − min)" + info("relief"), m("elevation_max_m") - m("elevation_min_m"), "m", mv(t, "elevation_max_m") - mv(t, "elevation_min_m"), 0)}
+            ${metric("Mean slope" + info("slope_mean_deg"), m("slope_mean_deg"), "°", mv(t, "slope_mean_deg"))}
+            ${metric("Roughness" + info("roughness_m"), m("roughness_m"), "m", mv(t, "roughness_m"))}
+            ${metric("Daily temperature range" + info("temp_range_c"), m("temp_range_c"), "°C", mv(t, "temp_range_c"))}
+            ${metric("Annual precipitation" + info("precip_annual_mm"), m("precip_annual_mm"), "mm", mv(t, "precip_annual_mm"))}
+            ${metric("Mean daily max / min" + info("temps"), null, "", null, 2, `${fmt(m("temp_max_mean_c"))} / ${fmt(m("temp_min_mean_c"))} °C`)}
+            ${metric("Absolute min / max" + info("temps"), null, "", null, 2, `${fmt(m("temp_abs_min_c"))} / ${fmt(m("temp_abs_max_c"))} °C`)}
           </div>
           <p class="note" style="margin-top:12px">Climate: NASA POWER (MERRA-2) daily, 2015–2024. Grid cell elevation ${fmt(ci.climate_grid_elevation_m, 0)} m; temperatures adjusted ${ci.temperature_lapse_adjustment_c >= 0 ? "+" : ""}${fmt(ci.temperature_lapse_adjustment_c)} °C to the site elevation (6.5 °C/km).</p>
         </div>
         <div class="card panel">
           <h3>Similarity breakdown <small>VS ${esc(t.name.toUpperCase())}</small></h3>
           <div class="bars">
-            ${COMPONENT_ORDER.map((k) => `<div class="bar-row"><span>${METRIC_LABELS[k][0]} <span class="muted">×${w[k]}</span></span><div class="bar"><div style="width:${Math.max(0, Math.min(100, comp[k]))}%"></div></div><span class="v">${fmt(comp[k], 1)}</span></div>`).join("")}
+            ${COMPONENT_ORDER.map((k) => `<div class="bar-row"><span>${METRIC_LABELS[k][0]} <span class="muted">×${w[k]}</span> ${info(k)}</span><div class="bar"><div style="width:${Math.max(0, Math.min(100, comp[k]))}%"></div></div><span class="v">${fmt(comp[k], 1)}</span></div>`).join("")}
           </div>
           <p class="note" style="margin-top:14px">${esc(s.similarity.explanation)}</p>
           <div style="margin-top:14px"><div class="eyebrow plain">Why it matters</div><p style="margin:6px 0 0">${esc(s.info.why || "—")}</p></div>
           <div style="margin-top:12px"><div class="eyebrow plain">Exploration use</div><p style="margin:6px 0 0">${esc(s.info.use || "—")}</p></div>
-          <div style="margin-top:12px"><div class="eyebrow plain">Where the analogy breaks</div><p style="margin:6px 0 0">${esc(breaksText(s))}</p></div>
+          <div style="margin-top:12px"><div class="eyebrow plain">Where the analogy breaks ${info("breaks")}</div><p style="margin:6px 0 0">${esc(breaksText(s))}</p></div>
           ${s.info.reference ? `<p class="note" style="margin-top:12px">Reference: ${s.info.url ? `<a class="cyan" href="${esc(s.info.url)}" target="_blank" rel="noopener">${esc(s.info.reference)}</a>` : esc(s.info.reference)}</p>` : ""}
         </div>
       </div>
@@ -319,6 +364,7 @@
         <ul class="src-list">${s.sources.concat(t.sources).filter((v, i, a) => a.indexOf(v) === i).map(sourceItem).join("")}</ul>
         ${s.errors && s.errors.length ? `<p class="note">Pipeline notes: ${s.errors.map(esc).join("; ")}</p>` : ""}
       </div>
+      ${nextStep("04 Compare", "See how every site ranks", "Rankings for Mars and Moon analogues, the planetary targets, method and limitations.", "#compare", "Compare all sites")}
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((state.data.generated_utc || "").slice(0, 10))}</span></div>
     </section>`;
     $("#site-select").onchange = (e) => { location.hash = `#field-${e.target.value}`; };
@@ -327,7 +373,7 @@
     mountProfile(s, t);
   }
   function metric(label, v, unit, tv, d = 2, text) {
-    return `<div class="metric"><small>${esc(label)}</small><b>${text ? esc(text) : `${fmt(v, d)} ${unit}`}</b>${tv !== null && tv !== undefined && !Number.isNaN(tv) ? `<i>target ${fmt(tv, d)} ${unit}</i>` : ""}</div>`;
+    return `<div class="metric"><small>${label}</small><b>${text ? esc(text) : `${fmt(v, d)} ${unit}`}</b>${tv !== null && tv !== undefined && !Number.isNaN(tv) ? `<i>target ${fmt(tv, d)} ${unit}</i>` : ""}</div>`;
   }
   function sourceItem(id) {
     const s = src(id);
@@ -361,6 +407,7 @@
     try { t = await loadTerrain(s.id); }
     catch (e) { if (slot.isConnected) slot.innerHTML = '<div class="frame3d" style="display:grid;place-items:center"><p class="muted">3D terrain not available for this site.</p></div>'; return; }
     if (!slot.isConnected || typeof Plotly === "undefined") return;
+    if (!hasWebGL) { slot.innerHTML = noGL("The 3D terrain view"); return; }
     const { nx, ny } = t;
     const zq = b64(t.z_dm_u16, Uint16Array), rgb = b64(t.rgb_u8, Uint8Array);
     const N = nx * ny, X = new Array(N), Y = new Array(N), Z = new Array(N), VC = new Array(N);
@@ -396,7 +443,7 @@
         xaxis: { title: { text: "km" }, gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
         yaxis: { title: { text: "km" }, gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
         zaxis: { title: { text: "m" }, gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
-        camera: { eye: { x: 1.05, y: -1.05, z: 0.75 } },
+        camera: { eye: { x: 0.95, y: -0.95, z: 0.62 } },
       },
     }, { responsive: true, displaylogo: false });
     $("#vx").onclick = (e) => { const b = e.target.closest("[data-x]"); if (!b) return;
@@ -435,6 +482,8 @@
       xaxis: { title: { text: "Distance (km)" }, gridcolor: "rgba(130,147,165,.18)", zeroline: false },
       yaxis: { title: { text: "Height above lowest point (m)" }, gridcolor: "rgba(130,147,165,.18)", zeroline: false },
     }, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+    // re-measure the legend once web fonts are loaded (avoids clipped names)
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { const el = document.getElementById("profile"); if (el && el.data) Plotly.relayout(el, {}); });
   }
 
   // ---------- Compare ----------
@@ -483,6 +532,7 @@
         <div class="card panel"><h3>Known limitations</h3><ul class="plain">${d.known_limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>
       </div>
       <div class="card panel"><h3>Data sources</h3><ul class="src-list">${Object.keys(d.sources).map(sourceItem).join("")}</ul></div>
+      ${nextStep("02 Atlas", "Explore another site", "Go back to the globe and open any of the 13 field logs.", "#atlas", "Back to the Atlas")}
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((d.generated_utc || "").slice(0, 10))}</span></div>
     </section>`;
     if (typeof Plotly !== "undefined") ["Mars", "Moon"].forEach((b) => {
