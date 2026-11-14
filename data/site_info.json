@@ -1,5 +1,5 @@
 {
- "_note": "Short site texts shown in the app. Each entry lists its published reference. 'review': true marks a text pending a team decision.",
+ "_note": "Short site texts shown in the app. Each entry lists its published reference.",
  "environments": [
   "Desert",
   "Polar",
@@ -100,15 +100,15 @@
    "review": false
   },
   "iceland-highlands": {
-   "short": "Holuhraun",
+   "short": "Askja",
    "environment": [
     "Volcanic"
    ],
-   "why": "Icelandic Highlands: Apollo astronauts trained in this region (Askja caldera, 1965 and 1967) and considered it the most Moon-like of their field areas. Our square covers the nearby 2014–2015 Holuhraun basaltic lava field.",
-   "use": "Basaltic volcanic terrain for geology training and instrument tests; Holuhraun is also studied as a planetary analogue for young volcanic plains.",
-   "reference": "Exploration Museum, Apollo astronaut training in Iceland; Voigt et al. (2025), Planetary Science Journal (USGS pub. 70275623)",
-   "url": "https://pubs.usgs.gov/publication/70275623",
-   "review": true
+   "why": "Askja caldera in the Icelandic Highlands, where Apollo astronauts trained in 1965 and 1967; they considered it the most Moon-like of their field areas.",
+   "use": "Volcanic geology training and field tests on barren basaltic terrain. The square includes part of Lake Öskjuvatn (~15% of its area).",
+   "reference": "Exploration Museum, Apollo astronaut training in Iceland; Smithsonian GVP, Askja (373060)",
+   "url": "https://www.explorationmuseum.com/astronaut-training/",
+   "review": false
   },
   "meteor-crater": {
    "short": "Meteor Crater",

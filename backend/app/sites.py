@@ -31,8 +31,9 @@ SITES = [
     {"id": "salar-pajonales", "name": "Salar de Pajonales", "country": "Chile",
      "lat": -25.14444, "lon": -68.82000, "analog_of": "Mars", "target": "jezero"},
     # --- Moon analogs -------------------------------------------------------
-    {"id": "iceland-highlands", "name": "Icelandic Highlands (Holuhraun)", "country": "Iceland",
-     "lat": 64.87, "lon": -16.83, "analog_of": "Moon", "target": "lunar-south-pole"},
+    # Askja caldera (Smithsonian GVP 373060), where Apollo crews trained in 1965 and 1967
+    {"id": "iceland-highlands", "name": "Askja caldera, Icelandic Highlands", "country": "Iceland",
+     "lat": 65.033, "lon": -16.783, "analog_of": "Moon", "target": "lunar-south-pole"},
     {"id": "meteor-crater", "name": "Meteor Crater (Barringer), Arizona", "country": "USA",
      "lat": 35.027, "lon": -111.022, "analog_of": "Moon", "target": "lunar-south-pole"},
     {"id": "craters-of-the-moon", "name": "Craters of the Moon, Idaho", "country": "USA",

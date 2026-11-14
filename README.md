@@ -25,7 +25,7 @@ We measure terrain and climate at 13 places on Earth and at two planetary target
 | Atacama Desert (Yungay), Chile | 56.7 | Meteor Crater (Barringer), Arizona, USA | 35.5 |
 | Salar de Pajonales, Chile | 55.8 | Craters of the Moon, Idaho, USA | 32.3 |
 | McMurdo Dry Valleys (Wright Valley), Antarctica | 39.4 | Mauna Kea, Hawaii, USA | 30.4 |
-| Campo de Piedra Pómez, Catamarca, Argentina | 39.0 | Icelandic Highlands (Holuhraun), Iceland | 30.1 |
+| Campo de Piedra Pómez, Catamarca, Argentina | 39.0 | Askja caldera, Icelandic Highlands, Iceland | 22.5 |
 | Haughton Crater, Canada | 38.3 | | |
 | Andahua Volcanic Field, Arequipa, Peru | 25.7 | | |
 | Makgadikgadi Pans, Botswana | 16.6 | | |
