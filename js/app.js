@@ -1,0 +1,542 @@
+/* NOVA TERRA LABS — Earth Analogue Program front end.
+   Static single-page app: hash routing, no build step.
+   Data: data/sites.json (pipeline output) + data/site_info.json (site texts). */
+(() => {
+  "use strict";
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? "—" : Number(v).toFixed(d));
+  const view = $("#view");
+
+  const ICONS = {
+    bridge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+    atlas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>',
+    field: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>',
+    compare: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  };
+  document.querySelectorAll("[data-route] .ico").forEach((el) => {
+    const r = el.parentElement.dataset.route;
+    if (ICONS[r]) el.innerHTML = ICONS[r];
+  });
+
+  const METRIC_LABELS = {
+    slope_mean_deg: ["Mean slope", "°"],
+    roughness_m: ["Roughness", "m"],
+    precip_annual_mm: ["Aridity (annual precipitation)", "mm"],
+    temp_range_c: ["Daily temperature range", "°C"],
+  };
+  const COMPONENT_ORDER = ["slope_mean_deg", "roughness_m", "precip_annual_mm", "temp_range_c"];
+  const BODY_COLOR = { Mars: "#FF7A45", Moon: "#00D9FF" };
+
+  const state = { data: null, info: null, body: "Both", envs: new Set(), selected: null, globe: null, map: null };
+
+  // ---------- data ----------
+  async function load() {
+    // data/bundle.js (if present) lets the app open directly from disk (file://) without a web server
+    const B = window.NT_BUNDLE;
+    const [d, i] = B ? [B.sites, B.info] : await Promise.all([
+      fetch("data/sites.json").then((r) => r.json()),
+      fetch("data/site_info.json").then((r) => r.json()),
+    ]);
+    state.data = d;
+    state.info = i;
+    state.data.sites.forEach((s) => { s.info = i.sites[s.id] || { short: s.name, environment: [] }; });
+    state.selected = ranked("Both")[0].id;
+  }
+  const sites = () => state.data.sites;
+  const site = (id) => sites().find((s) => s.id === id);
+  const target = (s) => state.data.targets[s.target];
+  const ranked = (body) => sites().filter((s) => body === "Both" || s.analog_of === body).sort((a, b) => b.similarity.score - a.similarity.score);
+  const rankOf = (s) => ranked(s.analog_of).indexOf(s) + 1;
+  const src = (id) => state.data.sources[id] || { title: id };
+  const mv = (obj, key) => (obj.metrics[key] ? obj.metrics[key].value : null);
+
+  function weakest(s) {
+    const c = s.similarity.components;
+    const k = COMPONENT_ORDER.slice().sort((a, b) => c[a] - c[b])[0];
+    return { key: k, label: METRIC_LABELS[k][0], score: c[k] };
+  }
+  function breaksText(s) {
+    const w = weakest(s);
+    const t = target(s);
+    const unit = METRIC_LABELS[w.key][1];
+    return `${w.label} is the weakest match (${fmt(w.score, 0)}/100): ${fmt(mv(s, w.key))} ${unit} here vs ${fmt(mv(t, w.key))} ${unit} at the ${t.body} target.`;
+  }
+
+  // ---------- chrome ----------
+  const TITLES = {
+    bridge: ["MISSION CONTROL", "BRIDGE / EARTH ANALOGUE PROGRAM"],
+    atlas: ["ATLAS", "EXPEDITION 02 / EARTH ANALOGUE SITES"],
+    field: ["FIELD LOG", "EXPEDITION 03 / SITE DATA"],
+    compare: ["COMPARE", "EXPEDITION 04 / RANKINGS & METHOD"],
+    about: ["THE PROJECT", "ABOUT / NASA SPACE APPS CHALLENGE 2026"],
+  };
+  function setChrome(route) {
+    const [n, p] = TITLES[route] || TITLES.bridge;
+    $("#topbar-name").textContent = n;
+    $("#topbar-path").textContent = p;
+    document.querySelectorAll("[data-route]").forEach((a) => a.classList.toggle("active", a.dataset.route === route));
+    document.title = route === "bridge" ? "NOVA TERRA LABS · Earth Analogue Program" : `${n[0] + n.slice(1).toLowerCase()} · NOVA TERRA LABS`;
+  }
+  function teardown() {
+    if (state.globe) { try { state.globe._destructor && state.globe._destructor(); } catch (e) { /* ignore */ } state.globe = null; }
+    if (state.map) { state.map.remove(); state.map = null; }
+    window.removeEventListener("resize", onGlobeResize);
+  }
+
+  // ---------- Bridge ----------
+  function renderBridge() {
+    view.innerHTML = `
+    <section class="bridge" aria-hidden="true"></section>
+    <section class="bridge-wrap">
+      <div class="launcher panel">
+        <div class="eyebrow">Bridge / Welcome aboard</div>
+        <span class="logo-nova">NOVA TERRA</span><span class="logo-labs">LABS</span>
+        <p class="tagline">Understanding Earth to prepare<br>for exploration beyond it.</p>
+        <p class="lead">We identify places on Earth whose terrain and climate resemble the Moon's south pole and Mars' Jezero crater, using open NASA and ESA data, so crews, rovers and instruments can train where it matters.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#atlas">Initiate exploration <span>→</span></a>
+          <a class="btn btn-secondary" href="#about">Explore the project <span class="arrow">→</span></a>
+        </div>
+        <div class="mission"><span class="mono">Mission 01</span><span>Find Earth. Understand what comes next.</span></div>
+      </div>
+      <div class="hud-top"><span class="hud-pill">EARTH / SOL III</span><span class="hud-pill">ORBITAL VIEW</span></div>
+      <div class="home-planet panel"><div class="mono">Home planet</div><div>Earth. Where it all begins.</div></div>
+      <div>
+        <div class="frontier-head"><span>CHOOSE YOUR NEXT FRONTIER</span><span class="lime">${sites().length} ANALOGUE SITES</span></div>
+        <div class="frontiers" style="margin-top:12px">
+          ${frontier("Earth", "Home planet", "Explore all analogue sites", "planet-earth.png", "#atlas", true)}
+          ${frontier("Moon", "Natural satellite", `${ranked("Moon").length} sites vs the lunar south pole`, "planet-moon.png", "#atlas-moon")}
+          ${frontier("Mars", "The red planet", `${ranked("Mars").length} sites vs Jezero crater`, "planet-mars.png", "#atlas-mars")}
+        </div>
+      </div>
+      <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
+    </section>`;
+  }
+  function frontier(name, kicker, desc, img, href, current) {
+    return `<a class="frontier panel${current ? " current" : ""}" href="${href}">
+      <img src="assets/${img}" alt="">
+      <span><small>${esc(kicker)}</small><b>${esc(name)}</b><span class="d">${esc(desc)}</span></span>
+      <span class="corner">${current ? "✓" : "→"}</span></a>`;
+  }
+
+  // ---------- Atlas ----------
+  function visibleSites() {
+    return ranked(state.body).filter((s) => !state.envs.size || s.info.environment.some((e) => state.envs.has(e)));
+  }
+  function renderAtlas(param) {
+    if (param && ["Moon", "Mars", "Both"].includes(param)) state.body = param;
+    const envs = state.info.environments;
+    view.innerHTML = `
+    <section class="page atlas">
+      <div class="atlas-left">
+        <div class="page-title">
+          <div class="eyebrow">Expedition 02 / Atlas</div>
+          <h1>Find Earth's<br>training grounds.</h1>
+          <p>Each site is a 10 × 10 km square compared with a planetary target using the same terrain and climate metrics.</p>
+        </div>
+        <div class="search panel">
+          <h3>Shape your search</h3>
+          <div class="label">TARGET</div>
+          <div class="chips" id="body-chips">${["Moon", "Mars", "Both"].map((b) => `<button class="chip${state.body === b ? " on" : ""}" data-body="${b}">${b}</button>`).join("")}</div>
+          <div class="label">ENVIRONMENT</div>
+          <div class="chips" id="env-chips">${envs.map((e) => `<button class="chip${state.envs.has(e) ? " on" : ""}" data-env="${e}">${e}</button>`).join("")}</div>
+          <p class="hint" id="atlas-count"></p>
+        </div>
+      </div>
+      <div class="globe-wrap">
+        <div class="globe-crumb"><span class="lime">●</span> EARTH / ANALOGUE SITES</div>
+        <div class="legend"><span><i style="background:${BODY_COLOR.Moon}"></i>MOON ANALOGUE</span><span><i style="background:${BODY_COLOR.Mars}"></i>MARS ANALOGUE</span></div>
+        <div id="globe" role="img" aria-label="3D globe with analogue sites"></div>
+        <div class="globe-caption">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK A SITE</div>
+      </div>
+      <aside class="insight panel" id="insight" aria-live="polite"></aside>
+      <div class="site-strip" id="site-strip"></div>
+    </section>`;
+    $("#body-chips").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-body]"); if (!b) return;
+      state.body = b.dataset.body; history.replaceState(null, "", `#atlas${state.body === "Both" ? "" : "-" + state.body.toLowerCase()}`); refreshAtlas(true);
+      document.querySelectorAll("#body-chips .chip").forEach((c) => c.classList.toggle("on", c.dataset.body === state.body));
+    });
+    $("#env-chips").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-env]"); if (!b) return;
+      const v = b.dataset.env; state.envs.has(v) ? state.envs.delete(v) : state.envs.add(v);
+      b.classList.toggle("on"); refreshAtlas(true);
+    });
+    initGlobe();
+    refreshAtlas(true);
+  }
+  function refreshAtlas(resetSel) {
+    const list = visibleSites();
+    if (resetSel && !list.some((s) => s.id === state.selected) && list.length) state.selected = list[0].id;
+    $("#atlas-count").textContent = list.length ? `${list.length} site${list.length > 1 ? "s" : ""} shown, ranked by similarity score.` : "No site matches these filters.";
+    $("#site-strip").innerHTML = list.map((s, i) => `
+      <a class="site-card panel${s.id === state.selected ? " sel" : ""}" data-id="${s.id}">
+        <span class="n">${String(i + 1).padStart(2, "0")}</span>
+        <span><b>${esc(s.info.short)}</b><small>${esc(s.country)} · ${s.analog_of} · ${fmt(s.similarity.score, 1)}</small></span>
+        <span class="go">→</span></a>`).join("");
+    $("#site-strip").onclick = (e) => { const c = e.target.closest("[data-id]"); if (c) selectSite(c.dataset.id, true); };
+    renderInsight();
+    if (state.globe) {
+      state.globe.htmlElementsData(list);
+      state.globe.pointsData(list);
+    }
+  }
+  function selectSite(id, fly) {
+    state.selected = id;
+    document.querySelectorAll(".site-card").forEach((c) => c.classList.toggle("sel", c.dataset.id === id));
+    document.querySelectorAll(".globe-label").forEach((c) => c.classList.toggle("sel", c.dataset.id === id));
+    renderInsight();
+    const s = site(id);
+    if (fly && state.globe && s) state.globe.pointOfView({ lat: s.lat, lng: s.lon, altitude: 1.9 }, 900);
+  }
+  function renderInsight() {
+    const box = $("#insight"); if (!box) return;
+    const s = site(state.selected);
+    if (!s || !visibleSites().includes(s)) { box.innerHTML = '<p class="muted">Select a site on the globe.</p>'; return; }
+    const t = target(s);
+    box.innerHTML = `
+      <div class="eyebrow plain">Site insight</div>
+      <div><h2>${esc(s.info.short)}</h2><div class="meta">${esc(s.country.toUpperCase())} · ${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°</div></div>
+      <div><span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span> ${s.info.environment.map((e) => `<span class="tag" style="color:var(--muted)">${esc(e)}</span>`).join(" ")}</div>
+      <div><div class="k">WHY IT MATTERS</div><p>${esc(s.info.why || s.name)}</p></div>
+      <div><div class="k">EXPLORATION USE</div><p>${esc(s.info.use || "—")}</p></div>
+      <div><div class="k">WHERE THE ANALOGY BREAKS</div><p>${esc(breaksText(s))}</p></div>
+      <div class="score-box"><span><small>Similarity to ${esc(t.name.split(" — ")[0])}</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length} ${s.analog_of} analogues</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
+      <a class="btn btn-primary" href="#field-${s.id}">View site <span>→</span></a>`;
+  }
+  function onGlobeResize() {
+    const el = $("#globe"); if (el && state.globe) state.globe.width(el.clientWidth).height(el.clientHeight);
+  }
+  function initGlobe() {
+    const el = $("#globe");
+    if (typeof Globe !== "function") { el.innerHTML = '<p class="muted" style="padding:40px">3D globe unavailable in this browser.</p>'; return; }
+    try {
+      const g = Globe()(el)
+        .backgroundColor("rgba(0,0,0,0)")
+        .globeImageUrl(window.NT_TEXTURES ? NT_TEXTURES.blueMarble : "assets/earth-blue-marble.jpg")
+        .bumpImageUrl(window.NT_TEXTURES ? NT_TEXTURES.topology : "assets/earth-topology.png")
+        .atmosphereColor("#3aa8ff").atmosphereAltitude(0.18)
+        .pointLat("lat").pointLng("lon").pointAltitude(0.012).pointRadius(0.55)
+        .pointColor((s) => BODY_COLOR[s.analog_of])
+        .onPointClick((s) => selectSite(s.id, true))
+        .htmlLat("lat").htmlLng("lon").htmlAltitude(0.02)
+        .htmlElement((s) => {
+          const d = document.createElement("div");
+          d.className = "globe-label" + (s.id === state.selected ? " sel" : "");
+          d.dataset.id = s.id;
+          d.innerHTML = `<i class="dot" style="background:${BODY_COLOR[s.analog_of]}"></i><span>${esc(s.info.short)}</span>`;
+          d.onclick = () => selectSite(s.id, true);
+          return d;
+        });
+      g.controls().autoRotate = false;
+      g.controls().enableDamping = true;
+      state.globe = g;
+      onGlobeResize();
+      window.addEventListener("resize", onGlobeResize);
+      const s = site(state.selected) || sites()[0];
+      g.pointOfView({ lat: s.lat, lng: s.lon, altitude: 2.3 }, 0);
+    } catch (err) {
+      el.innerHTML = `<p class="muted" style="padding:40px">3D globe unavailable (${esc(err.message)}).</p>`;
+    }
+  }
+
+  // ---------- Field log ----------
+  function renderField(id) {
+    const s = site(id) || site(state.selected) || ranked("Both")[0];
+    state.selected = s.id;
+    if (!id) history.replaceState(null, "", `#field-${s.id}`);
+    const t = target(s);
+    const m = (k) => mv(s, k);
+    const ci = s.climate_info || {};
+    const comp = s.similarity.components;
+    const w = s.similarity.weights;
+    const gEarth = `https://earth.google.com/web/@${s.lat},${s.lon},${Math.round(m("elevation_mean_m") || 0)}a,9000d,35y,0h,45t,0r`;
+    view.innerHTML = `
+    <section class="page">
+      <div class="field-head panel">
+        <div>
+          <div class="eyebrow">Expedition 03 / Field log</div>
+          <h1 style="margin-top:8px">${esc(s.name)}</h1>
+          <div class="coords">${esc(s.country)} · ${fmt(s.lat, 4)}°, ${fmt(s.lon, 4)}° · ${state.data.analysis_area_km} × ${state.data.analysis_area_km} km square</div>
+        </div>
+        <span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span>
+        <div class="score-box" style="min-width:230px"><span><small>Similarity score</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length}</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
+        <select id="site-select" aria-label="Choose site">${["Mars", "Moon"].map((b) => `<optgroup label="${b} analogues">${ranked(b).map((x) => `<option value="${x.id}"${x.id === s.id ? " selected" : ""}>${esc(x.info.short)} · ${fmt(x.similarity.score, 1)}</option>`).join("")}</optgroup>`).join("")}</select>
+      </div>
+
+      <div class="grid-2">
+        <div class="card panel">
+          <h3>3D terrain <small>COPERNICUS DEM 30 M · SENTINEL-2 TRUE COLOUR${s.imagery && s.imagery.date ? " · " + esc(s.imagery.date) : ""}</small></h3>
+          <div id="viewer-slot"></div>
+        </div>
+        <div class="card panel">
+          <h3>Satellite close-up <small>SENTINEL-2 TRUE COLOUR IN THE ANALYSIS SQUARE · ESRI CONTEXT</small></h3>
+          <div id="map" class="map"></div>
+          <div class="links">
+            <a class="btn btn-secondary" href="${gEarth}" target="_blank" rel="noopener">Open in Google Earth <span class="arrow">↗</span></a>
+            <a class="btn btn-secondary" href="https://worldview.earthdata.nasa.gov/?v=${s.lon - 0.4},${s.lat - 0.3},${s.lon + 0.4},${s.lat + 0.3}" target="_blank" rel="noopener">NASA Worldview <span class="arrow">↗</span></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card panel">
+          <h3>Site metrics <small>SITE · ${esc(t.body.toUpperCase())} TARGET</small></h3>
+          <div class="metrics">
+            ${metric("Mean elevation", m("elevation_mean_m"), "m", mv(t, "elevation_mean_m"), 0)}
+            ${metric("Relief (max − min)", m("elevation_max_m") - m("elevation_min_m"), "m", mv(t, "elevation_max_m") - mv(t, "elevation_min_m"), 0)}
+            ${metric("Mean slope", m("slope_mean_deg"), "°", mv(t, "slope_mean_deg"))}
+            ${metric("Roughness", m("roughness_m"), "m", mv(t, "roughness_m"))}
+            ${metric("Daily temperature range", m("temp_range_c"), "°C", mv(t, "temp_range_c"))}
+            ${metric("Annual precipitation", m("precip_annual_mm"), "mm", mv(t, "precip_annual_mm"))}
+            ${metric("Mean daily max / min", null, "", null, 2, `${fmt(m("temp_max_mean_c"))} / ${fmt(m("temp_min_mean_c"))} °C`)}
+            ${metric("Absolute min / max", null, "", null, 2, `${fmt(m("temp_abs_min_c"))} / ${fmt(m("temp_abs_max_c"))} °C`)}
+          </div>
+          <p class="note" style="margin-top:12px">Climate: NASA POWER (MERRA-2) daily, 2015–2024. Grid cell elevation ${fmt(ci.climate_grid_elevation_m, 0)} m; temperatures adjusted ${ci.temperature_lapse_adjustment_c >= 0 ? "+" : ""}${fmt(ci.temperature_lapse_adjustment_c)} °C to the site elevation (6.5 °C/km).</p>
+        </div>
+        <div class="card panel">
+          <h3>Similarity breakdown <small>VS ${esc(t.name.toUpperCase())}</small></h3>
+          <div class="bars">
+            ${COMPONENT_ORDER.map((k) => `<div class="bar-row"><span>${METRIC_LABELS[k][0]} <span class="muted">×${w[k]}</span></span><div class="bar"><div style="width:${Math.max(0, Math.min(100, comp[k]))}%"></div></div><span class="v">${fmt(comp[k], 1)}</span></div>`).join("")}
+          </div>
+          <p class="note" style="margin-top:14px">${esc(s.similarity.explanation)}</p>
+          <div style="margin-top:14px"><div class="eyebrow plain">Why it matters</div><p style="margin:6px 0 0">${esc(s.info.why || "—")}</p></div>
+          <div style="margin-top:12px"><div class="eyebrow plain">Exploration use</div><p style="margin:6px 0 0">${esc(s.info.use || "—")}</p></div>
+          <div style="margin-top:12px"><div class="eyebrow plain">Where the analogy breaks</div><p style="margin:6px 0 0">${esc(breaksText(s))}</p></div>
+          ${s.info.reference ? `<p class="note" style="margin-top:12px">Reference: ${s.info.url ? `<a class="cyan" href="${esc(s.info.url)}" target="_blank" rel="noopener">${esc(s.info.reference)}</a>` : esc(s.info.reference)}</p>` : ""}
+        </div>
+      </div>
+
+      <div class="card panel">
+        <h3>Terrain profile <small>WEST → EAST THROUGH THE SQUARE CENTRE · SITE VS TARGET (RELATIVE ELEVATION)</small></h3>
+        <div id="profile" class="plot"></div>
+      </div>
+
+      <div class="card panel">
+        <h3>Data sources</h3>
+        <ul class="src-list">${s.sources.concat(t.sources).filter((v, i, a) => a.indexOf(v) === i).map(sourceItem).join("")}</ul>
+        ${s.errors && s.errors.length ? `<p class="note">Pipeline notes: ${s.errors.map(esc).join("; ")}</p>` : ""}
+      </div>
+      <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((state.data.generated_utc || "").slice(0, 10))}</span></div>
+    </section>`;
+    $("#site-select").onchange = (e) => { location.hash = `#field-${e.target.value}`; };
+    mountViewer(s);
+    mountMap(s);
+    mountProfile(s, t);
+  }
+  function metric(label, v, unit, tv, d = 2, text) {
+    return `<div class="metric"><small>${esc(label)}</small><b>${text ? esc(text) : `${fmt(v, d)} ${unit}`}</b>${tv !== null && tv !== undefined && !Number.isNaN(tv) ? `<i>target ${fmt(tv, d)} ${unit}</i>` : ""}</div>`;
+  }
+  function sourceItem(id) {
+    const s = src(id);
+    const link = s.doi || s.access;
+    return `<li><b>${esc(s.title)}</b>${s.provider ? ` — ${esc(s.provider)}` : ""}${s.resolution ? `. Resolution ${esc(s.resolution)}` : ""}${link ? `. <a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a>` : ""}</li>`;
+  }
+  // 3D terrain: compact grid exported from the Colab viewers (data/terrain/<id>.json)
+  const b64 = (str, Type) => { const bin = atob(str); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Type(u.buffer); };
+  const terrainCache = {};
+  function loadTerrain(id) {
+    if (!terrainCache[id] && window.NT_BUNDLE && window.NT_BUNDLE.terrain[id]) terrainCache[id] = Promise.resolve(window.NT_BUNDLE.terrain[id]);
+    if (!terrainCache[id]) terrainCache[id] = fetch(`data/terrain/${id}.json`).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    return terrainCache[id];
+  }
+  // Sentinel-2 true-colour of the analysis square as a PNG data URL (north up)
+  async function sentinelImage(id) {
+    const t = await loadTerrain(id);
+    const rgb = b64(t.rgb_u8, Uint8Array), cv = document.createElement("canvas");
+    cv.width = t.nx; cv.height = t.ny;
+    const ctx = cv.getContext("2d"), img = ctx.createImageData(t.nx, t.ny);
+    for (let r = 0; r < t.ny; r++) for (let c = 0; c < t.nx; c++) {
+      const src = (r * t.nx + c) * 3, dst = ((t.ny - 1 - r) * t.nx + c) * 4;
+      img.data[dst] = rgb[src]; img.data[dst + 1] = rgb[src + 1]; img.data[dst + 2] = rgb[src + 2]; img.data[dst + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return cv.toDataURL("image/png");
+  }
+  async function mountViewer(s) {
+    const slot = $("#viewer-slot");
+    let t;
+    try { t = await loadTerrain(s.id); }
+    catch (e) { if (slot.isConnected) slot.innerHTML = '<div class="frame3d" style="display:grid;place-items:center"><p class="muted">3D terrain not available for this site.</p></div>'; return; }
+    if (!slot.isConnected || typeof Plotly === "undefined") return;
+    const { nx, ny } = t;
+    const zq = b64(t.z_dm_u16, Uint16Array), rgb = b64(t.rgb_u8, Uint8Array);
+    const N = nx * ny, X = new Array(N), Y = new Array(N), Z = new Array(N), VC = new Array(N);
+    const dx = (t.x[1] - t.x[0]) / (nx - 1), dy = (t.y[1] - t.y[0]) / (ny - 1);
+    for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) {
+      const n = r * nx + c;
+      X[n] = t.x[0] + c * dx; Y[n] = t.y[0] + r * dy; Z[n] = t.zmin + zq[n] / 10;
+      VC[n] = `rgb(${rgb[n * 3]},${rgb[n * 3 + 1]},${rgb[n * 3 + 2]})`;
+    }
+    const I = [], J = [], K = [];
+    for (let r = 0; r < ny - 1; r++) for (let c = 0; c < nx - 1; c++) {
+      const a = r * nx + c, b = a + 1, d = a + nx, e = d + 1;
+      I.push(a, b); J.push(b, e); K.push(d, d);
+    }
+    const light = { ambient: 0.55, diffuse: 0.85, fresnel: 0.1, roughness: 0.9, specular: 0.05 };
+    const lp = { x: -5e4, y: 5e4, z: 1e5 };
+    const hov = "x %{x:.2f} km<br>y %{y:.2f} km<br>elevation %{z:.0f} m<extra></extra>";
+    const base = (t.aspect_z || 0.1) / 2;
+    const ar = { x: 1, y: (t.y[1] - t.y[0]) / (t.x[1] - t.x[0]) };
+    slot.innerHTML = `<div class="viewer-tools">
+        <div class="chips" id="vx">${[1, 2, 5, 10].map((v) => `<button class="chip${v === 2 ? " on" : ""}" data-x="${v}">×${v}</button>`).join("")}</div>
+        <div class="chips" id="vm"><button class="chip on" data-m="0">Satellite</button><button class="chip" data-m="1">Elevation</button></div>
+      </div><div id="terrain3d" class="frame3d"></div>
+      <p class="note" style="margin-top:8px">Vertical exaggeration ×1 / ×2 / ×5 / ×10. Drag to rotate, scroll to zoom.</p>`;
+    Plotly.newPlot("terrain3d", [
+      { type: "mesh3d", x: X, y: Y, z: Z, i: I, j: J, k: K, vertexcolor: VC, lighting: light, lightposition: lp, hovertemplate: hov, name: "Satellite" },
+      { type: "mesh3d", x: X, y: Y, z: Z, i: I, j: J, k: K, intensity: Z, colorscale: "Earth", visible: false, lighting: light, lightposition: lp, hovertemplate: hov, name: "Elevation",
+        colorbar: { len: 0.6, title: { text: "m" }, tickfont: { color: "#EAF0F5" } } },
+    ], {
+      paper_bgcolor: "#050B14", margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, font: { color: "#EAF0F5", family: "Inter" },
+      scene: {
+        aspectmode: "manual", aspectratio: { x: ar.x, y: ar.y, z: base * 2 },
+        xaxis: { title: { text: "km" }, gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
+        yaxis: { title: { text: "km" }, gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
+        zaxis: { title: { text: "m" }, gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
+        camera: { eye: { x: 1.05, y: -1.05, z: 0.75 } },
+      },
+    }, { responsive: true, displaylogo: false });
+    $("#vx").onclick = (e) => { const b = e.target.closest("[data-x]"); if (!b) return;
+      document.querySelectorAll("#vx .chip").forEach((c) => c.classList.toggle("on", c === b));
+      Plotly.relayout("terrain3d", { "scene.aspectratio.z": base * Number(b.dataset.x) }); };
+    $("#vm").onclick = (e) => { const b = e.target.closest("[data-m]"); if (!b) return;
+      document.querySelectorAll("#vm .chip").forEach((c) => c.classList.toggle("on", c === b));
+      Plotly.restyle("terrain3d", { visible: b.dataset.m === "0" ? [true, false] : [false, true] }); };
+  }
+  function mountMap(s) {
+    if (typeof L === "undefined") return;
+    const half = state.data.analysis_area_km / 2;
+    const dLat = half / 110.574;
+    const dLon = half / (111.32 * Math.cos((s.lat * Math.PI) / 180));
+    const b = [[s.lat - dLat, s.lon - dLon], [s.lat + dLat, s.lon + dLon]];
+    const map = L.map("map", { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 18, attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
+    }).addTo(map);
+    sentinelImage(s.id).then((url) => { if (state.map === map) L.imageOverlay(url, b, { opacity: 1, attribution: "Sentinel-2 L2A (ESA/Copernicus)" }).addTo(map).bringToFront(); }).catch(() => {});
+    L.rectangle(b, { color: "#B7FF00", weight: 2, fill: false }).addTo(map);
+    L.circleMarker([s.lat, s.lon], { radius: 4, color: "#00D9FF", fillOpacity: 1 }).addTo(map);
+    map.fitBounds(b, { padding: [24, 24] });
+    state.map = map;
+  }
+  function mountProfile(s, t) {
+    if (typeof Plotly === "undefined" || !s.terrain_profile) return;
+    const rel = (arr) => { const z = arr.filter((v) => v !== null); const mn = Math.min(...z); return arr.map((v) => (v === null ? null : v - mn)); };
+    const traces = [
+      { x: s.terrain_profile.distance_km, y: rel(s.terrain_profile.elevation_m), name: s.info.short, mode: "lines", line: { color: "#B7FF00", width: 2.5 } },
+    ];
+    if (t.terrain_profile) traces.push({ x: t.terrain_profile.distance_km, y: rel(t.terrain_profile.elevation_m), name: t.name.split(" — ")[0], mode: "lines", line: { color: BODY_COLOR[t.body], width: 2, dash: "dot" } });
+    Plotly.newPlot("profile", traces, {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "#EAF0F5", family: "Inter" },
+      margin: { l: 56, r: 16, t: 10, b: 44 }, legend: { orientation: "h", y: 1.14, x: 0 },
+      xaxis: { title: { text: "Distance (km)" }, gridcolor: "rgba(130,147,165,.18)", zeroline: false },
+      yaxis: { title: { text: "Height above lowest point (m)" }, gridcolor: "rgba(130,147,165,.18)", zeroline: false },
+    }, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+  }
+
+  // ---------- Compare ----------
+  function renderCompare() {
+    const d = state.data;
+    const tCard = (t) => {
+      const tm = (k) => mv(t, k);
+      const div = t.metrics.diviner_temp_max_c ? `<li>Diviner (LRO) at the target: annual max surface ${fmt(tm("diviner_temp_max_c"), 1)} °C, annual average ${fmt(tm("diviner_temp_avg_c"), 1)} °C (${t.diviner_cells || "—"} cells; context only).</li>` : "";
+      return `<div class="card panel target-card">
+        <span class="tag ${t.body.toLowerCase()}">${t.body} target</span>
+        <div class="big">${esc(t.name)}</div>
+        <ul class="plain">
+          <li>Mean slope ${fmt(tm("slope_mean_deg"))}° · roughness ${fmt(tm("roughness_m"))} m</li>
+          <li>Relief ${fmt(tm("elevation_max_m") - tm("elevation_min_m"), 0)} m in the 10 × 10 km square</li>
+          <li>Temperature range ${fmt(tm("temp_range_c"), 0)} °C · precipitation ${fmt(tm("precip_annual_mm"), 0)} mm</li>
+          ${div}
+          <li class="muted">${esc(t.notes || "")}</li>
+        </ul></div>`;
+    };
+    const table = (body) => `
+      <div class="card panel">
+        <h3>${body} analogues <small>VS ${esc(Object.values(d.targets).find((t) => t.body === body).name.toUpperCase())}</small></h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>#</th><th>Site</th><th>Country</th><th>Score</th><th>Slope °</th><th>Roughness m</th><th>Temp range °C</th><th>Precip mm</th><th>Slope</th><th>Rough.</th><th>Aridity</th><th>Temp</th></tr></thead>
+          <tbody>${ranked(body).map((s, i) => `<tr>
+            <td class="num">${i + 1}</td><td><a href="#field-${s.id}">${esc(s.info.short)}</a></td><td>${esc(s.country)}</td>
+            <td class="num lime">${fmt(s.similarity.score, 1)}</td>
+            <td class="num">${fmt(mv(s, "slope_mean_deg"))}</td><td class="num">${fmt(mv(s, "roughness_m"))}</td><td class="num">${fmt(mv(s, "temp_range_c"))}</td><td class="num">${fmt(mv(s, "precip_annual_mm"))}</td>
+            ${COMPONENT_ORDER.map((k) => `<td class="num muted">${fmt(s.similarity.components[k], 0)}</td>`).join("")}</tr>`).join("")}</tbody>
+        </table></div>
+        <div id="chart-${body}" class="plot" style="height:${60 + ranked(body).length * 34}px;margin-top:10px"></div>
+      </div>`;
+    const wts = d.similarity_method.weights;
+    view.innerHTML = `
+    <section class="page">
+      <div class="page-title"><div class="eyebrow">Expedition 04 / Compare</div><h1>How close is Earth?</h1>
+        <p>All ${sites().length} sites ranked against their planetary target with one method and one set of open data sources.</p></div>
+      <div class="grid-2">${tCard(d.targets.jezero)}${tCard(d.targets["lunar-south-pole"])}</div>
+      ${table("Mars")}
+      ${table("Moon")}
+      <div class="grid-2">
+        <div class="card panel"><h3>Method</h3>
+          <p class="note">${esc(d.similarity_method.description)}</p>
+          <ul class="plain">${COMPONENT_ORDER.map((k) => `<li>${METRIC_LABELS[k][0]}: weight ${Math.round(wts[k] * 100)} %</li>`).join("")}
+            <li>Analysis area: ${d.analysis_area_km} × ${d.analysis_area_km} km per site; all terrain compared at ≈30 m.</li></ul></div>
+        <div class="card panel"><h3>Known limitations</h3><ul class="plain">${d.known_limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>
+      </div>
+      <div class="card panel"><h3>Data sources</h3><ul class="src-list">${Object.keys(d.sources).map(sourceItem).join("")}</ul></div>
+      <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((d.generated_utc || "").slice(0, 10))}</span></div>
+    </section>`;
+    if (typeof Plotly !== "undefined") ["Mars", "Moon"].forEach((b) => {
+      const r = ranked(b).slice().reverse();
+      Plotly.newPlot(`chart-${b}`, COMPONENT_ORDER.map((k, i) => ({
+        type: "bar", orientation: "h", name: ["Slope", "Roughness", "Aridity", "Temp. range"][i], y: r.map((s) => s.info.short),
+        x: r.map((s) => s.similarity.components[k] * wts[k]), marker: { color: ["#B7FF00", "#00D9FF", "#1677FF", "#8293A5"][i] },
+        hovertemplate: "%{y}: %{x:.1f} points<extra>" + METRIC_LABELS[k][0] + "</extra>",
+      })), {
+        barmode: "stack", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "#EAF0F5", family: "Inter", size: 12 },
+        margin: { l: 130, r: 16, t: 34, b: 44 }, legend: { orientation: "h", y: 1.0, yanchor: "bottom", x: 0, traceorder: "normal", font: { size: 11 } },
+        xaxis: { title: { text: "Weighted contribution to score (0–100)" }, range: [0, 100], gridcolor: "rgba(130,147,165,.18)" },
+      }, { responsive: true, displaylogo: false, displayModeBar: false });
+    });
+  }
+
+  // ---------- About ----------
+  function renderAbout() {
+    view.innerHTML = `
+    <section class="page">
+      <div class="about-hero panel">
+        <div class="eyebrow">About / NOVA TERRA LABS</div>
+        <h1 style="font-size:clamp(28px,2.6vw,42px);margin:10px 0 12px">Identify Earth locations that analog<br>the permanent Moon base locations and Mars.</h1>
+        <p class="note" style="font-size:15px;max-width:820px">Our answer to the NASA International Space Apps Challenge 2026. We built an open, reproducible pipeline that measures terrain and climate on Earth and on two planetary targets — the Shackleton rim near the lunar south pole (a candidate Artemis base region) and Jezero crater on Mars (Perseverance landing site) — and scores how alike they are.</p>
+        <div class="links"><a class="btn btn-primary" href="#atlas">Open the Atlas <span>→</span></a><a class="btn btn-secondary" href="#compare">See the rankings <span class="arrow">→</span></a></div>
+      </div>
+      <div class="steps">
+        ${step("01", "Measure terrain", "Copernicus DEM (30 m) on Earth; USGS CTX DTM for Jezero and NASA LOLA (5 m) for the Moon, all compared at ≈30 m. Slope and roughness for each 10 × 10 km square.")}
+        ${step("02", "Measure climate", "NASA POWER daily data (MERRA-2), 2015–2024: daily temperature range and annual precipitation, adjusted to site elevation.")}
+        ${step("03", "Score similarity", "Four partial scores — slope, roughness, aridity and temperature range — combined into one 0–100 index with fixed weights.")}
+        ${step("04", "Explore", "Globe, satellite close-ups, 3D terrain with Sentinel-2 colour, terrain profiles and full source list for every site.")}
+      </div>
+      <div class="card panel"><h3>Team</h3><p class="note">NOVA TERRA LABS — NASA Space Apps Challenge 2026. Data pipeline developed in Google Colab (Python); this app is a static site with no build step, ready for GitHub Pages.</p></div>
+      <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
+    </section>`;
+  }
+  const step = (n, h, p) => `<div class="card panel step"><b>${n}</b><h3>${h}</h3><p>${p}</p></div>`;
+
+  // ---------- router ----------
+  function route() {
+    // Hash forms: #atlas, #atlas-mars, #field-<site-id>, #compare, #about (also accepts legacy #/field/<id>)
+    let h = decodeURIComponent((location.hash || "").replace(/^#\/?/, ""));
+    let r, param;
+    if (h.includes("/")) [r, param] = h.split("/");
+    else { const i = h.indexOf("-"); r = i < 0 ? h : h.slice(0, i); param = i < 0 ? "" : h.slice(i + 1); }
+    const name = ["bridge", "atlas", "field", "compare", "about"].includes(r) ? r : "bridge";
+    if (name === "atlas" && param) param = { moon: "Moon", mars: "Mars", both: "Both" }[param.toLowerCase()] || param;
+    teardown();
+    setChrome(name);
+    view.classList.toggle("is-bridge", name === "bridge");
+    window.scrollTo(0, 0);
+    ({ bridge: renderBridge, atlas: renderAtlas, field: renderField, compare: renderCompare, about: renderAbout })[name](param || undefined);
+  }
+
+  load().then(() => { window.addEventListener("hashchange", route); route(); })
+    .catch((e) => { view.innerHTML = `<div class="panel card"><h3>Could not load data</h3><p class="note">${esc(e.message)}. Make sure data/bundle.js is present, or serve this folder over HTTP.</p></div>`; });
+})();
