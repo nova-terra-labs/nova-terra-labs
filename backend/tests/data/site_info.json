@@ -1,0 +1,158 @@
+{
+ "_note": "Short site texts shown in the app. Each entry lists its published reference. 'review': true marks a text pending a team decision.",
+ "environments": [
+  "Desert",
+  "Polar",
+  "Volcanic",
+  "Impact",
+  "Salt flat"
+ ],
+ "sites": {
+  "pampa-la-joya": {
+   "short": "La Joya",
+   "environment": [
+    "Desert"
+   ],
+   "why": "Hyperarid desert in southern Peru, part of the Atacama Desert belt. Its 'Mar de Cuarzo' soils have very low organic matter, high oxidant activity and very few microorganisms: Mars-like soil properties.",
+   "use": "Test life-detection methods and instruments on Mars-like soils.",
+   "reference": "Valdivia-Silva et al. (2011), Geochimica et Cosmochimica Acta. doi:10.1016/j.gca.2011.01.017",
+   "url": "https://doi.org/10.1016/j.gca.2011.01.017",
+   "review": false
+  },
+  "andahua": {
+   "short": "Andahua",
+   "environment": [
+    "Volcanic"
+   ],
+   "why": "The 'Valley of the Volcanoes' in the Peruvian Andes: young scoria cones and lava flows at high altitude, a volcanic-terrain candidate.",
+   "use": "Study volcanic morphology, surface roughness and terrain accessibility.",
+   "reference": "Smithsonian Global Volcanism Program, Andahua-Orcopampa (354004)",
+   "url": "https://volcano.si.edu/volcano.cfm?vn=354004",
+   "review": false
+  },
+  "atacama": {
+   "short": "Atacama",
+   "environment": [
+    "Desert"
+   ],
+   "why": "The hyperarid core of the Atacama Desert is one of the driest places on Earth, with highly saline and oxidizing soils; it has been studied as a Mars analog for about 20 years.",
+   "use": "NASA has used it to test drilling and life-detection technologies for Mars.",
+   "reference": "Azua-Bustos et al. (2022), Frontiers in Astronomy and Space Sciences. doi:10.3389/fspas.2021.810426",
+   "url": "https://doi.org/10.3389/fspas.2021.810426",
+   "review": false
+  },
+  "haughton": {
+   "short": "Haughton",
+   "environment": [
+    "Impact",
+    "Polar"
+   ],
+   "why": "A 20 km impact crater (~23 million years old) on Devon Island, in the largest continuous barren rocky polar desert on Earth.",
+   "use": "Home of the NASA Haughton-Mars Project since 1997: field tests of technologies and operations for Mars exploration.",
+   "reference": "Mars Institute, Haughton-Mars Project (HMP)",
+   "url": "https://www.marsinstitute.no/hmp",
+   "review": false
+  },
+  "makgadikgadi": {
+   "short": "Makgadikgadi",
+   "environment": [
+    "Salt flat"
+   ],
+   "why": "A dried paleo-lake in Botswana and one of the largest evaporite systems on Earth.",
+   "use": "Analogue for Martian playa and salt deposits: groundwater circulation and layered lake sediments.",
+   "reference": "Schmidt et al. (2023), Frontiers in Astronomy and Space Sciences. doi:10.3389/fspas.2023.1108386",
+   "url": "https://doi.org/10.3389/fspas.2023.1108386",
+   "review": false
+  },
+  "mcmurdo": {
+   "short": "McMurdo",
+   "environment": [
+    "Polar",
+    "Desert"
+   ],
+   "why": "A hyperarid, cold polar desert in Antarctica whose landforms closely resemble those on the Martian surface.",
+   "use": "Study of cold, dry surface processes and of life at its limits.",
+   "reference": "Salvatore & Levy (2021), Mars Geological Enigmas, Elsevier. doi:10.1016/B978-0-12-820245-6.00011-2",
+   "url": "https://doi.org/10.1016/B978-0-12-820245-6.00011-2",
+   "review": false
+  },
+  "campo-piedra-pomez": {
+   "short": "Piedra Pómez",
+   "environment": [
+    "Volcanic",
+    "Desert"
+   ],
+   "why": "A volcanic landscape in the Argentine Puna with Mars-analog landforms: gravel-mantled megaripples, yardangs, ventifacts and periodic bedrock ridges carved by wind.",
+   "use": "Study wind erosion and yardang formation comparable to Martian yardangs.",
+   "reference": "Favaro et al. (2020), Icarus 346, 113765. doi:10.1016/j.icarus.2020.113765",
+   "url": "https://doi.org/10.1016/j.icarus.2020.113765",
+   "review": false
+  },
+  "salar-pajonales": {
+   "short": "Pajonales",
+   "environment": [
+    "Salt flat"
+   ],
+   "why": "A calcium-sulfate salt flat in the High Andes whose climate transition partly mirrors the one proposed for early Mars.",
+   "use": "Explore what the last near-surface oases for microbial life on Mars could have looked like.",
+   "reference": "Frontiers in Astronomy and Space Sciences (2022). doi:10.3389/fspas.2021.797591",
+   "url": "https://doi.org/10.3389/fspas.2021.797591",
+   "review": false
+  },
+  "iceland-highlands": {
+   "short": "Holuhraun",
+   "environment": [
+    "Volcanic"
+   ],
+   "why": "Icelandic Highlands: Apollo astronauts trained in this region (Askja caldera, 1965 and 1967) and considered it the most Moon-like of their field areas. Our square covers the nearby 2014–2015 Holuhraun basaltic lava field.",
+   "use": "Basaltic volcanic terrain for geology training and instrument tests; Holuhraun is also studied as a planetary analogue for young volcanic plains.",
+   "reference": "Exploration Museum, Apollo astronaut training in Iceland; Voigt et al. (2025), Planetary Science Journal (USGS pub. 70275623)",
+   "url": "https://pubs.usgs.gov/publication/70275623",
+   "review": true
+  },
+  "meteor-crater": {
+   "short": "Meteor Crater",
+   "environment": [
+    "Impact"
+   ],
+   "why": "The best-preserved exposed impact crater on Earth, in the Arizona desert.",
+   "use": "Apollo astronauts trained here with USGS geologists; it is still used for astronaut geology training.",
+   "reference": "Vaughan et al. (2019), GSA Field Guide 55. doi:10.1130/2019.0055(12)",
+   "url": "https://doi.org/10.1130/2019.0055(12)",
+   "review": false
+  },
+  "craters-of-the-moon": {
+   "short": "Craters of the Moon",
+   "environment": [
+    "Volcanic"
+   ],
+   "why": "Basaltic lava fields and cinder cones on the Snake River Plain, Idaho.",
+   "use": "In August 1969, Apollo 14 astronauts trained here in volcanic geology; it remains a NASA research site.",
+   "reference": "U.S. National Park Service, Space Exploration Research and Astronaut Training",
+   "url": "https://www.nps.gov/crmo/learn/historyculture/space-exploration-research-and-astronaut-training.htm",
+   "review": false
+  },
+  "lanzarote": {
+   "short": "Lanzarote",
+   "environment": [
+    "Volcanic"
+   ],
+   "why": "Historic basaltic eruptions (Timanfaya and Peñas de Tao). Its basalts were characterised as a lunar soil simulant comparable to Apollo 14 samples.",
+   "use": "Lunar regolith simulant (LZS-1) for construction and resource-use tests.",
+   "reference": "Alberquilla et al. (2022), Scientific Reports 12, 16470. doi:10.1038/s41598-022-20960-8",
+   "url": "https://doi.org/10.1038/s41598-022-20960-8",
+   "review": false
+  },
+  "mauna-kea": {
+   "short": "Mauna Kea",
+   "environment": [
+    "Volcanic"
+   ],
+   "why": "Fine-grained volcanic soils on the slopes of Mauna Kea, used as a lunar and Martian regolith analogue.",
+   "use": "NASA–CSA field tests of excavation and resource-extraction (ISRU) technologies, 2010 and 2012.",
+   "reference": "ten Kate et al. (2013), Journal of Aerospace Engineering 26(1), 183–196. doi:10.1061/(ASCE)AS.1943-5525.0000200",
+   "url": "https://doi.org/10.1061/(ASCE)AS.1943-5525.0000200",
+   "review": false
+  }
+ }
+}
