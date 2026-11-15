@@ -619,6 +619,30 @@
     <p class="note" style="margin-top:10px">No place on Earth reproduces reduced gravity, the lunar vacuum, the thin Martian atmosphere or their radiation environments. Our index compares terrain and climate only; these differences apply equally to all ${sites().length} sites.
     Sources: NASA NSSDCA Moon and Mars fact sheets; Zhang et al. (2020), Science Advances, <a class="cyan" href="https://doi.org/10.1126/sciadv.aaz1334" target="_blank" rel="noopener">doi:10.1126/sciadv.aaz1334</a>; Hassler et al. (2014), Science, <a class="cyan" href="https://doi.org/10.1126/science.1244797" target="_blank" rel="noopener">doi:10.1126/science.1244797</a>.</p></div>`;
 
+  // Weight sensitivity: re-rank the sites with every weight set (each weight 0.10–0.50 in steps of 0.05, summing to 1)
+  function sensitivity(body) {
+    const vals = []; for (let i = 0; i <= 8; i++) vals.push(0.1 + 0.05 * i);
+    const W = [];
+    vals.forEach((a) => vals.forEach((b) => vals.forEach((c) => vals.forEach((d) => { if (Math.abs(a + b + c + d - 1) < 1e-9) W.push([a, b, c, d]); }))));
+    const S = ranked(body), first = {}, rk = {};
+    S.forEach((s) => { first[s.id] = 0; rk[s.id] = []; });
+    W.forEach((w) => {
+      const r = S.map((s) => [s, COMPONENT_ORDER.reduce((t, k, i) => t + w[i] * s.similarity.components[k], 0)]).sort((x, y) => y[1] - x[1]);
+      first[r[0][0].id]++; r.forEach(([s], i) => rk[s.id].push(i + 1));
+    });
+    return { n: W.length, rows: S.map((s) => ({ s, pct: (100 * first[s.id]) / W.length, best: Math.min(...rk[s.id]), worst: Math.max(...rk[s.id]) })) };
+  }
+  function sensitivityCard() {
+    const M = sensitivity("Mars"), L = sensitivity("Moon");
+    const tbl = (b, R) => `<div><div class="eyebrow plain" style="margin-bottom:6px">${b} analogues</div><div class="table-wrap"><table class="data"><thead><tr><th>Site</th><th>Our rank</th><th>#1 in</th><th>Rank range</th></tr></thead>
+      <tbody>${R.rows.map((r, i) => `<tr><td><a href="#field-${r.s.id}">${esc(r.s.info.short)}</a></td><td class="num">${i + 1}</td><td class="num ${r.pct >= 50 ? "lime" : ""}">${fmt(r.pct, 0)} %</td><td class="num">${r.best === r.worst ? r.best : r.best + "–" + r.worst}</td></tr>`).join("")}</tbody></table></div></div>`;
+    const top = (R) => R.rows.slice().sort((a, b) => b.pct - a.pct)[0];
+    const tm = top(M), tl = top(L);
+    return `<div class="card panel" id="sens"><h3>Do the results depend on our weights? <small>SENSITIVITY TEST · ${M.n} WEIGHT SETS</small></h3>
+      <p class="note">Our weights (slope 0.3, roughness 0.3, aridity 0.3, temperature 0.1) are a team choice. Here every site is re-ranked with all ${M.n} weight sets in which each weight goes from 0.10 to 0.50 (steps of 0.05) and the four add up to 1. <b>${esc(tm.s.info.short)} is #1 for Mars in ${fmt(tm.pct, 0)} % of them and never ranks below #${tm.worst}; ${esc(tl.s.info.short)} is #1 for the Moon in ${fmt(tl.pct, 0)} % and never ranks below #${tl.worst}.</b> The leaders do not depend on our particular weights.</p>
+      <div class="grid-2" style="margin-top:12px">${tbl("Mars", M)}${tbl("Moon", L)}</div></div>`;
+  }
+
   // ---------- Compare ----------
   function renderCompare() {
     const d = state.data;
@@ -657,6 +681,7 @@
       <div class="grid-2">${tCard(d.targets.jezero)}${tCard(d.targets["lunar-south-pole"])}</div>
       ${table("Mars")}
       ${table("Moon")}
+      ${sensitivityCard()}
       <div class="grid-2">
         <div class="card panel"><h3>Method</h3>
           <p class="note">${esc(d.similarity_method.description)}</p>
@@ -836,6 +861,7 @@
     compare: [
       [".target-card", "These are the two planetary targets every Earth site is measured against.", "prepend"],
       [".table-wrap", "All sites ranked. The four last columns are the partial scores behind each total."],
+      ["#sens", "A test of our own choice: the rankings recomputed with 375 different weight sets.", "prepend"],
       [".res-list", "Which of the challenge's suggested data resources we used."],
     ],
     discover: [

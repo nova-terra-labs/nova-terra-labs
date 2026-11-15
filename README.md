@@ -31,6 +31,8 @@ We measure terrain and climate at 15 places on Earth and at two planetary target
 | Andahua Volcanic Field, Arequipa, Peru | 25.7 | Askja caldera, Icelandic Highlands, Iceland | 22.5 |
 | Makgadikgadi Pans, Botswana | 16.6 | | |
 
+**Do the results depend on our weights?** We re-ranked every site with all 375 weight sets in which each weight goes from 0.10 to 0.50 (steps of 0.05) and the four add up to 1. La Pampa de la Joya is #1 for Mars in 78 % of them and never below #2; Cerro Chao is #1 for the Moon in 89 % and never below #3. The leaders do not depend on our particular weights (Compare screen).
+
 Data generated on 2026-11-14. See [docs/methodology.md](docs/methodology.md) for how the score is computed and its limitations.
 
 ## Discover: searching whole zones
