@@ -992,7 +992,7 @@
         ${step("01", "Measure terrain", "Copernicus DEM (30 m) on Earth; USGS CTX DTM for Jezero and NASA LOLA (5 m) for the Moon, all compared at ≈30 m. Slope and roughness for each 10 × 10 km square.")}
         ${step("02", "Measure climate", "NASA POWER daily data (MERRA-2), 2015–2024: daily temperature range and annual precipitation, adjusted to site elevation.")}
         ${step("03", "Score similarity", "Four partial scores — slope, roughness, aridity and temperature range — combined into one 0–100 index with fixed weights.")}
-        ${step("04", "Explore and discover", "Globe, satellite close-ups, 3D terrain and profiles for every site; Discover searches whole zones cell by cell, with machine-learning terrain families.")}
+        ${step("04", "Explore and discover", "Globe, satellite close-ups, 3D terrain and profiles for every site; Discover searches whole zones cell by cell, with machine-learning terrain families, and lets anyone analyse any place on Earth (approximate live scores).")}
       </div>
       <div class="card panel"><h3>Reference analogues and new candidates</h3><p class="note">Eight of our sites are <b>reference analogues</b>: well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Seven are <b>new candidates</b> that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi, Cerro Chao, Monturaqui). A new candidate that scores as high as a reference site is a strong lead: La Pampa de la Joya ranks first among all Mars analogues, above the Atacama Desert, and Cerro Chao ranks first among all Moon analogues, above Lanzarote. Cerro Chao and Monturaqui are new <b>lunar</b> candidates in the Atacama, a region known mainly for Mars analogues: what makes them lunar analogues is the landform (a silicic lava dome, a simple impact crater), not the region.</p></div>
       ${limitsCard()}
@@ -1035,6 +1035,7 @@
     discover: [
       [".page-title", "Here the index searches a whole zone instead of sites we chose: every 10 × 10 km land cell gets a score.", "append"],
       ["#disc-controls", "Choose the search zone and whether to compare with Mars or the Moon.", "prepend"],
+      ["#live-card", "Your turn: click any place in the world to score it and find the most similar places. Live results are approximate.", "prepend"],
       ["#disc-top", "The best cells. Cells more than 50 km from any of our sites are marked as new finds; click one to see why it scores.", "prepend"],
     ],
     about: [[".steps", "How the index is built, in four steps."]],
