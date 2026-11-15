@@ -4,7 +4,7 @@
 
 Our answer to the NASA International Space Apps Challenge 2026 challenge *"Identify Earth Locations that Analog the Permanent Moon Base Locations and Mars"*.
 
-We measure terrain and climate at 13 places on Earth and at two planetary targets — the **Shackleton crater rim near the lunar south pole** (a candidate Artemis base region) and **Jezero crater on Mars** (Perseverance landing site) — and score how alike they are, with one method and open data only.
+We measure terrain and climate at 15 places on Earth and at two planetary targets — the **Shackleton crater rim near the lunar south pole** (a candidate Artemis base region) and **Jezero crater on Mars** (Perseverance landing site) — and score how alike they are, with one method and open data only.
 
 **Live app:** https://rlostaunau-create.github.io/nova-terra-labs/
 
@@ -13,7 +13,7 @@ We measure terrain and climate at 13 places on Earth and at two planetary target
 | Screen | Content |
 |---|---|
 | **Bridge** | Mission start screen; choose Earth, Moon or Mars |
-| **Atlas** | 3D globe with the 13 analogue sites; filter by target (Moon / Mars) and environment; site insight with the real similarity score |
+| **Atlas** | 3D globe with the 15 analogue sites; filter by target (Moon / Mars) and environment; site insight with the real similarity score |
 | **Field log** | Per site: 3D terrain (Copernicus DEM + Sentinel-2 true colour, vertical exaggeration ×1–×10), satellite close-up of the 10 × 10 km square, all metrics vs the planetary target, similarity breakdown, terrain profile, Google Earth / NASA Worldview links, sources |
 | **Compare** | Rankings for Mars and Moon analogues, the two planetary targets (including LRO Diviner temperatures), method, weights, known limitations, all sources |
 
@@ -21,20 +21,22 @@ We measure terrain and climate at 13 places on Earth and at two planetary target
 
 | Mars analogues (vs Jezero) | Score | Moon analogues (vs Shackleton rim) | Score |
 |---|---|---|---|
-| La Pampa de la Joya, Arequipa, Peru | 66.5 | Timanfaya lava fields, Lanzarote, Spain | 37.7 |
-| Atacama Desert (Yungay), Chile | 56.7 | Meteor Crater (Barringer), Arizona, USA | 35.5 |
-| Salar de Pajonales, Chile | 55.8 | Craters of the Moon, Idaho, USA | 32.3 |
-| McMurdo Dry Valleys (Wright Valley), Antarctica | 39.4 | Mauna Kea, Hawaii, USA | 30.4 |
-| Campo de Piedra Pómez, Catamarca, Argentina | 39.0 | Askja caldera, Icelandic Highlands, Iceland | 22.5 |
-| Haughton Crater, Canada | 38.3 | | |
-| Andahua Volcanic Field, Arequipa, Peru | 25.7 | | |
+| La Pampa de la Joya, Arequipa, Peru | 66.5 | Cerro Chao dacite dome, Atacama, Chile | 59.7 |
+| Atacama Desert (Yungay), Chile | 56.7 | Monturaqui impact crater, Atacama, Chile | 41.0 |
+| Salar de Pajonales, Chile | 55.8 | Timanfaya lava fields, Lanzarote, Spain | 37.7 |
+| McMurdo Dry Valleys (Wright Valley), Antarctica | 39.4 | Meteor Crater (Barringer), Arizona, USA | 35.5 |
+| Campo de Piedra Pómez, Catamarca, Argentina | 39.0 | Craters of the Moon, Idaho, USA | 32.3 |
+| Haughton Crater, Canada | 38.3 | Mauna Kea, Hawaii, USA | 30.4 |
+| Andahua Volcanic Field, Arequipa, Peru | 25.7 | Askja caldera, Icelandic Highlands, Iceland | 22.5 |
 | Makgadikgadi Pans, Botswana | 16.6 | | |
 
 Data generated on 2026-11-14. See [docs/methodology.md](docs/methodology.md) for how the score is computed and its limitations.
 
 ## Reference analogues and new candidates
 
-Eight sites are **reference analogues** — well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo Dry Valleys, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Five are **new candidates** that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi). A new candidate that scores as high as a reference site is a strong lead: **La Pampa de la Joya ranks first among all Mars analogues (66.5), above the Atacama Desert (56.7).**
+Eight sites are **reference analogues** — well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo Dry Valleys, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Seven are **new candidates** that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi, Cerro Chao, Monturaqui). A new candidate that scores as high as a reference site is a strong lead: **La Pampa de la Joya ranks first among all Mars analogues (66.5), above the Atacama Desert (56.7), and Cerro Chao ranks first among all Moon analogues (59.7), above Lanzarote (37.7).**
+
+**New lunar candidates in a Mars-analogue region.** Cerro Chao and Monturaqui are in the Atacama, a region known mainly for Mars analogues. What makes them lunar candidates is the landform, not the region: Cerro Chao is a dacite lava dome studied as an analogue for the silicic domes of the Moon (Flahaut et al., 2021, doi:10.5194/egusphere-egu21-11780), and Monturaqui is a simple impact crater ≈370 m wide (Ugalde et al., 2007, doi:10.1111/j.1945-5100.2007.tb01015.x). At Monturaqui the 10 × 10 km square is mostly the surrounding ignimbrite plain, so its score describes the crater's setting more than the crater itself.
 
 ## Earth's limits as an analogue
 

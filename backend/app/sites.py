@@ -34,6 +34,13 @@ SITES = [
     # Askja caldera (Smithsonian GVP 373060), where Apollo crews trained in 1965 and 1967
     {"id": "iceland-highlands", "name": "Askja caldera, Icelandic Highlands", "country": "Iceland",
      "lat": 65.033, "lon": -16.783, "analog_of": "Moon", "target": "lunar-south-pole"},
+    # New lunar candidates in the Atacama, a region known mainly for Mars analogs:
+    # Cerro Chao dacite coulee (de Silva et al. 1994, doi:10.1029/94JB00652) and
+    # Monturaqui impact crater (Ugalde et al. 2007, Meteoritics & Planetary Science 42)
+    {"id": "cerro-chao", "name": "Cerro Chao dacite dome, Atacama", "country": "Chile",
+     "lat": -22.117, "lon": -68.150, "analog_of": "Moon", "target": "lunar-south-pole"},
+    {"id": "monturaqui", "name": "Monturaqui impact crater, Atacama", "country": "Chile",
+     "lat": -23.9275, "lon": -68.2617, "analog_of": "Moon", "target": "lunar-south-pole"},
     {"id": "meteor-crater", "name": "Meteor Crater (Barringer), Arizona", "country": "USA",
      "lat": 35.027, "lon": -111.022, "analog_of": "Moon", "target": "lunar-south-pole"},
     {"id": "craters-of-the-moon", "name": "Craters of the Moon, Idaho", "country": "USA",

@@ -147,10 +147,12 @@
   }
   // one line comparing the best new candidate with the best reference analogue (Mars)
   function headline() {
-    const r = ranked("Mars"), n = r.find((s) => s.info.category === "new"), ref = r.find((s) => s.info.category === "reference");
-    if (!n || !ref) return "";
-    const above = n.similarity.score > ref.similarity.score;
-    return `<p class="headline"><span class="tag cat-new">New candidate</span> ${esc(n.info.short)} (${fmt(n.similarity.score, 1)}) ${above ? "scores above" : "is close to"} ${esc(ref.info.short)} (${fmt(ref.similarity.score, 1)}), the top-scoring reference analogue for Mars.</p>`;
+    return ["Mars", "Moon"].map((b) => {
+      const r = ranked(b), n = r.find((s) => s.info.category === "new"), ref = r.find((s) => s.info.category === "reference");
+      if (!n || !ref) return "";
+      const above = n.similarity.score > ref.similarity.score;
+      return `<p class="headline"><span class="tag cat-new">New candidate</span> ${esc(n.info.short)} (${fmt(n.similarity.score, 1)}) ${above ? "scores above" : "is close to"} ${esc(ref.info.short)} (${fmt(ref.similarity.score, 1)}), the top-scoring reference analogue for ${b === "Moon" ? "the Moon" : "Mars"}.</p>`;
+    }).join("");
   }
   function findings() {
     const row = (b) => { const s = ranked(b)[0]; return `
@@ -261,7 +263,7 @@
       <div class="eyebrow plain">Site insight</div>
       <div><h2>${esc(s.info.short)}</h2><div class="meta">${esc(s.country.toUpperCase())} · ${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°</div></div>
       <div><span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span> ${catTag(s)} ${info("category")} ${s.info.environment.map((e) => `<span class="tag" style="color:var(--muted)">${esc(e)}</span>`).join(" ")}</div>
-      <div><div class="k">WHY IT MATTERS</div><p>${esc(s.info.why || s.name)}</p></div>
+      <div><div class="k">WHY IT MATTERS</div><p>${esc(s.info.why || s.name)}</p>${s.info.region_note ? `<p class="note" style="margin:6px 0 0">${esc(s.info.region_note)}</p>` : ""}</div>
       <div><div class="k">EXPLORATION USE</div><p>${esc(s.info.use || "—")}</p></div>
       <div><div class="k">WHERE THE ANALOGY BREAKS ${info("breaks")}</div><p>${esc(breaksText(s))}</p></div>
       <div class="score-box"><span><small>Similarity to ${esc(t.name.split(" — ")[0])} ${info("score")}</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length} ${s.analog_of} analogues</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
@@ -366,7 +368,7 @@
             ${COMPONENT_ORDER.map((k) => `<div class="bar-row"><span>${METRIC_LABELS[k][0]} <span class="muted">×${w[k]}</span> ${info(k)}</span><div class="bar"><div style="width:${Math.max(0, Math.min(100, comp[k]))}%"></div></div><span class="v">${fmt(comp[k], 1)}</span></div>`).join("")}
           </div>
           <p class="note" style="margin-top:14px">${esc(s.similarity.explanation)}</p>
-          <div style="margin-top:14px"><div class="eyebrow plain">Why it matters</div><p style="margin:6px 0 0">${esc(s.info.why || "—")}</p></div>
+          <div style="margin-top:14px"><div class="eyebrow plain">Why it matters</div><p style="margin:6px 0 0">${esc(s.info.why || "—")}</p>${s.info.region_note ? `<p class="note" style="margin:6px 0 0">${esc(s.info.region_note)}</p>` : ""}</div>
           <div style="margin-top:12px"><div class="eyebrow plain">Exploration use</div><p style="margin:6px 0 0">${esc(s.info.use || "—")}</p></div>
           <div style="margin-top:12px"><div class="eyebrow plain">Where the analogy breaks ${info("breaks")}</div><p style="margin:6px 0 0">${esc(breaksText(s))}</p></div>
           ${s.info.reference ? `<p class="note" style="margin-top:12px">Reference: ${s.info.url ? `<a class="cyan" href="${esc(s.info.url)}" target="_blank" rel="noopener">${esc(s.info.reference)}</a>` : esc(s.info.reference)}</p>` : ""}
@@ -529,7 +531,7 @@
   const limitsCard = () => `<div class="card panel"><h3>Earth's limits as an analogue <small>APPLIES TO EVERY SITE</small></h3>
     <div class="table-wrap"><table class="data"><thead><tr><th></th><th>Earth</th><th>Moon</th><th>Mars</th></tr></thead>
     <tbody>${LIMITS.map((r) => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("")}</tbody></table></div>
-    <p class="note" style="margin-top:10px">No place on Earth reproduces reduced gravity, the lunar vacuum, the thin Martian atmosphere or their radiation environments. Our index compares terrain and climate only; these differences apply equally to all 13 sites.
+    <p class="note" style="margin-top:10px">No place on Earth reproduces reduced gravity, the lunar vacuum, the thin Martian atmosphere or their radiation environments. Our index compares terrain and climate only; these differences apply equally to all ${sites().length} sites.
     Sources: NASA NSSDCA Moon and Mars fact sheets; Zhang et al. (2020), Science Advances, <a class="cyan" href="https://doi.org/10.1126/sciadv.aaz1334" target="_blank" rel="noopener">doi:10.1126/sciadv.aaz1334</a>; Hassler et al. (2014), Science, <a class="cyan" href="https://doi.org/10.1126/science.1244797" target="_blank" rel="noopener">doi:10.1126/science.1244797</a>.</p></div>`;
 
   // ---------- Compare ----------
@@ -580,7 +582,7 @@
       ${limitsCard()}
       ${resourcesCard()}
       <div class="card panel"><h3>Data sources</h3><ul class="src-list">${Object.keys(d.sources).map(sourceItem).join("")}</ul></div>
-      ${nextStep("02 Atlas", "Explore another site", "Go back to the globe and open any of the 13 field logs.", "#atlas", "Back to the Atlas")}
+      ${nextStep("02 Atlas", "Explore another site", "Go back to the globe and open any of the ${sites().length} field logs.", "#atlas", "Back to the Atlas")}
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((d.generated_utc || "").slice(0, 10))}</span></div>
     </section>`;
     if (typeof Plotly !== "undefined") ["Mars", "Moon"].forEach((b) => {
@@ -613,7 +615,7 @@
         ${step("03", "Score similarity", "Four partial scores — slope, roughness, aridity and temperature range — combined into one 0–100 index with fixed weights.")}
         ${step("04", "Explore", "Globe, satellite close-ups, 3D terrain with Sentinel-2 colour, terrain profiles and full source list for every site.")}
       </div>
-      <div class="card panel"><h3>Reference analogues and new candidates</h3><p class="note">Eight of our sites are <b>reference analogues</b>: well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Five are <b>new candidates</b> that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi). A new candidate that scores as high as a reference site is a strong lead: La Pampa de la Joya ranks first among all Mars analogues, above the Atacama Desert.</p></div>
+      <div class="card panel"><h3>Reference analogues and new candidates</h3><p class="note">Eight of our sites are <b>reference analogues</b>: well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Seven are <b>new candidates</b> that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi, Cerro Chao, Monturaqui). A new candidate that scores as high as a reference site is a strong lead: La Pampa de la Joya ranks first among all Mars analogues, above the Atacama Desert, and Cerro Chao ranks first among all Moon analogues, above Lanzarote. Cerro Chao and Monturaqui are new <b>lunar</b> candidates in the Atacama, a region known mainly for Mars analogues: what makes them lunar analogues is the landform (a silicic lava dome, a simple impact crater), not the region.</p></div>
       ${limitsCard()}
       <div class="card panel"><h3>Next steps</h3><ul class="plain">
         <li><b>Illumination:</b> add LOLA illumination maps for the lunar south pole and sunlight duration for each Earth site.</li>

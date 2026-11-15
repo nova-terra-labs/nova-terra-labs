@@ -119,6 +119,32 @@
    "review": false,
    "category": "reference"
   },
+  "cerro-chao": {
+   "short": "Cerro Chao",
+   "environment": [
+    "Volcanic"
+   ],
+   "why": "A 14 km-long dacite lava coulee in the dry Andes of northern Chile, studied as an analogue for the silicic volcanic domes found on the Moon.",
+   "use": "Study steep, rough volcanic terrain and silicic lava morphology relevant to lunar domes.",
+   "reference": "Flahaut et al. (2021), Rheology of the Andean domes as an analog for lunar silicic constructs, EGU21-11780. doi:10.5194/egusphere-egu21-11780; de Silva et al. (1994), JGR 99(B9). doi:10.1029/94JB00652",
+   "url": "https://doi.org/10.5194/egusphere-egu21-11780",
+   "review": false,
+   "category": "new",
+   "region_note": "New lunar candidate in the Atacama–Altiplano region, which is known mainly for Mars analogues."
+  },
+  "monturaqui": {
+   "short": "Monturaqui",
+   "environment": [
+    "Impact"
+   ],
+   "why": "A small, well-preserved simple impact crater (≈370 m wide, 34 m deep) in the Atacama Desert. The 10 × 10 km square also includes the ignimbrite plain around it.",
+   "use": "Study a simple impact crater and its ejecta in a hyper-arid setting, at a scale similar to many small lunar craters.",
+   "reference": "Ugalde, Valenzuela & Milkereit (2007), Meteoritics & Planetary Science 42(12), 2153–2163. doi:10.1111/j.1945-5100.2007.tb01015.x",
+   "url": "https://doi.org/10.1111/j.1945-5100.2007.tb01015.x",
+   "review": false,
+   "category": "new",
+   "region_note": "New lunar candidate in the Atacama Desert, which is known mainly for Mars analogues."
+  },
   "meteor-crater": {
    "short": "Meteor Crater",
    "environment": [
