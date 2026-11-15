@@ -6,7 +6,7 @@ Our answer to the NASA International Space Apps Challenge 2026 challenge *"Ident
 
 We measure terrain and climate at 15 places on Earth and at two planetary targets — the **Shackleton crater rim near the lunar south pole** (a candidate Artemis base region) and **Jezero crater on Mars** (Perseverance landing site) — and score how alike they are, with one method and open data only.
 
-**Live app:** https://rlostaunau-create.github.io/nova-terra-labs/
+**Live app:** https://nova-terra-labs.github.io/nova-terra-labs/
 
 ## What the app shows
 
