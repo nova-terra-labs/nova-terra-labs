@@ -1,0 +1,158 @@
+{
+ "generated": "2026-11-14",
+ "method": "Live analysis in the app (AWS Terrain Tiles + NASA POWER) run on the 15 sites and compared with the official pipeline scores (Copernicus DEM + NASA POWER).",
+ "rows": [
+  {
+   "id": "pampa-la-joya",
+   "body": "Mars",
+   "official": 66.47,
+   "live": 64.68,
+   "slope_official": 2.39,
+   "slope_live": 3.32,
+   "rough_official": 1.38,
+   "rough_live": 1.6
+  },
+  {
+   "id": "andahua",
+   "body": "Mars",
+   "official": 25.73,
+   "live": 27.42,
+   "slope_official": 14.66,
+   "slope_live": 13.86,
+   "rough_official": 4.09,
+   "rough_live": 3.43
+  },
+  {
+   "id": "atacama",
+   "body": "Mars",
+   "official": 56.7,
+   "live": 55.33,
+   "slope_official": 6.74,
+   "slope_live": 7.2,
+   "rough_official": 2.24,
+   "rough_live": 2.34
+  },
+  {
+   "id": "haughton",
+   "body": "Mars",
+   "official": 38.33,
+   "live": 37.37,
+   "slope_official": 5.44,
+   "slope_live": 5.28,
+   "rough_official": 1.82,
+   "rough_live": 2.0
+  },
+  {
+   "id": "makgadikgadi",
+   "body": "Mars",
+   "official": 16.57,
+   "live": 23.75,
+   "slope_official": 0.4,
+   "slope_live": 0.48,
+   "rough_official": 0.22,
+   "rough_live": 0.42
+  },
+  {
+   "id": "mcmurdo",
+   "body": "Mars",
+   "official": 39.4,
+   "live": 41.69,
+   "slope_official": 16.88,
+   "slope_live": 7.49,
+   "rough_official": 2.11,
+   "rough_live": 0.3
+  },
+  {
+   "id": "campo-piedra-pomez",
+   "body": "Mars",
+   "official": 39.03,
+   "live": 35.67,
+   "slope_official": 5.04,
+   "slope_live": 5.44,
+   "rough_official": 1.71,
+   "rough_live": 1.95
+  },
+  {
+   "id": "salar-pajonales",
+   "body": "Mars",
+   "official": 55.78,
+   "live": 70.77,
+   "slope_official": 1.44,
+   "slope_live": 2.61,
+   "rough_official": 0.72,
+   "rough_live": 1.14
+  },
+  {
+   "id": "iceland-highlands",
+   "body": "Moon",
+   "official": 22.5,
+   "live": 19.76,
+   "slope_official": 7.75,
+   "slope_live": 7.7,
+   "rough_official": 2.83,
+   "rough_live": 3.62
+  },
+  {
+   "id": "cerro-chao",
+   "body": "Moon",
+   "official": 59.66,
+   "live": 59.25,
+   "slope_official": 17.2,
+   "slope_live": 16.7,
+   "rough_official": 3.51,
+   "rough_live": 3.44
+  },
+  {
+   "id": "monturaqui",
+   "body": "Moon",
+   "official": 40.95,
+   "live": 43.43,
+   "slope_official": 8.76,
+   "slope_live": 7.63,
+   "rough_official": 3.44,
+   "rough_live": 2.48
+  },
+  {
+   "id": "meteor-crater",
+   "body": "Moon",
+   "official": 35.47,
+   "live": 34.07,
+   "slope_official": 1.79,
+   "slope_live": 1.68,
+   "rough_official": 1.13,
+   "rough_live": 1.24
+  },
+  {
+   "id": "craters-of-the-moon",
+   "body": "Moon",
+   "official": 32.29,
+   "live": 29.04,
+   "slope_official": 3.7,
+   "slope_live": 3.23,
+   "rough_official": 1.47,
+   "rough_live": 1.66
+  },
+  {
+   "id": "lanzarote",
+   "body": "Moon",
+   "official": 37.73,
+   "live": 43.35,
+   "slope_official": 5.98,
+   "slope_live": 5.28,
+   "rough_official": 2.43,
+   "rough_live": 1.67
+  },
+  {
+   "id": "mauna-kea",
+   "body": "Moon",
+   "official": 30.42,
+   "live": 29.96,
+   "slope_official": 12.46,
+   "slope_live": 12.37,
+   "rough_official": 2.37,
+   "rough_live": 2.43
+  }
+ ],
+ "mae": 3.33,
+ "max_abs": 14.99
+}

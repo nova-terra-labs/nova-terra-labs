@@ -59,6 +59,7 @@
     ]);
     state.data = d;
     state.info = i;
+    state.liveCal = B && B.live_calibration ? B.live_calibration : await fetch("data/live_calibration.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
     state.discover = B && B.discover ? B.discover : await fetch("data/discover.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
     state.data.sites.forEach((s) => { s.info = i.sites[s.id] || { short: s.name, environment: [] }; });
     state.selected = ranked("Both")[0].id;
@@ -967,8 +968,14 @@
       }
     }
     $("#live-go").onclick = run;
-    const cal = state.data && window.NT_LIVE_CAL;
-    if (cal) $("#live-cal").innerHTML = cal;
+    const C = state.liveCal;
+    if (C) {
+      const within = C.rows.filter((r) => Math.abs(r.live - r.official) <= 3.5).length;
+      $("#live-cal").innerHTML = `<details class="live-cal"><summary>How approximate is it? Live analysis vs official scores for our ${C.rows.length} sites (mean difference ${fmt(C.mae, 1)} points)</summary>
+        <p class="note">We ran the live analysis on our ${C.rows.length} sites and compared it with the official pipeline (Copernicus DEM). ${within} of ${C.rows.length} sites are within ±3.5 points, and the top Moon ranking is the same. The largest differences come from terrain: Salar de Pajonales (a salt flat, ${fmt(C.rows.find((r) => r.id === "salar-pajonales").live - C.rows.find((r) => r.id === "salar-pajonales").official, 1)} points) and McMurdo, where the free elevation model is coarser in Antarctica. Use the live result as a first screening and the official pipeline for final scores.</p>
+        <div class="table-wrap"><table class="data"><thead><tr><th>Site</th><th>Target</th><th>Official</th><th>Live</th><th>Difference</th><th>Slope ° official / live</th><th>Roughness m official / live</th></tr></thead>
+        <tbody>${C.rows.map((r) => { const s2 = site(r.id); return `<tr><td>${esc(s2 ? s2.info.short : r.id)}</td><td>${r.body}</td><td class="num">${fmt(r.official, 1)}</td><td class="num">${fmt(r.live, 1)}</td><td class="num ${Math.abs(r.live - r.official) > 3.5 ? "warn" : ""}">${r.live - r.official >= 0 ? "+" : ""}${fmt(r.live - r.official, 1)}</td><td class="num">${fmt(r.slope_official, 1)} / ${fmt(r.slope_live, 1)}</td><td class="num">${fmt(r.rough_official, 2)} / ${fmt(r.rough_live, 2)}</td></tr>`; }).join("")}</tbody></table></div></details>`;
+    }
   }
 
   // ---------- About ----------

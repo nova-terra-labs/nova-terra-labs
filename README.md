@@ -47,6 +47,8 @@ The 15 sites were chosen by the team. **Discover** applies the same index to eve
 
 The search confirms our best sites (the top cells in Peru and for the Moon in Chile sit next to La Joya and Cerro Chao) and adds new leads, above all a hyper-arid plain in the Atacama whose slope (2.9°) is almost identical to Jezero's. A high score is a lead to check on imagery and in the field, not a confirmed analogue.
 
+**Analyse any place on Earth (approximate).** In Discover, a user can click any point in the world: the app downloads NASA POWER climate and elevation for that 10 × 10 km square in the browser, scores it against Mars and the Moon, and lists the most similar places among our 15 sites and 1,265 cells (k-nearest neighbours). Because the Copernicus DEM cannot be read from a browser, terrain comes from the AWS Terrain Tiles elevation model, so **these live scores are approximate**. Run on our 15 sites, they differ from the official scores by 3.3 points on average (12 of 15 within ±3.5); the largest differences are Salar de Pajonales (+15, a salt flat) and McMurdo (coarser elevation data in Antarctica). The live result is a first screening; final scores come from the pipeline.
+
 **Machine learning.** An unsupervised k-means model (k = 3, chosen by silhouette score) groups the 1,265 cells into terrain families without using our weights or targets. All 20 best Mars cells fall in the *low-relief, hyper-arid* family, together with La Pampa de la Joya, the Atacama Desert and Salar de Pajonales. Code: `backend/app/discover.py` and `tools/ml_terrain_families.py`.
 
 ## Reference analogues and new candidates

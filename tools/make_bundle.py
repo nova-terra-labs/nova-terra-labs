@@ -3,6 +3,8 @@ import json, glob, os, sys
 d = sys.argv[1]
 b = {"sites": json.load(open(f"{d}/sites.json")), "info": json.load(open(f"{d}/site_info.json")),
      "terrain": {os.path.basename(f)[:-5]: json.load(open(f)) for f in sorted(glob.glob(f"{d}/terrain/*.json"))}}
+if os.path.exists(f"{d}/live_calibration.json"):
+    b["live_calibration"] = json.load(open(f"{d}/live_calibration.json"))
 if os.path.exists(f"{d}/discover.json"):
     b["discover"] = json.load(open(f"{d}/discover.json"))
 if os.path.exists(f"{d}/targets_terrain.json"):
