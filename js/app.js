@@ -758,6 +758,7 @@
       </div>
       <div class="disc-grid">
         <div class="card panel"><h3>Similarity map <small>${esc(Z.name.toUpperCase())} · VS ${esc(tgt.name.split(" — ")[0].toUpperCase())}</small></h3>
+          <div class="viewer-tools"><div class="chips" id="dfill-chips">${[["solid", "Coloured cells"], ["outline", "See the terrain"]].map(([k, n]) => `<button class="chip${k === (state.dfill || "solid") ? " on" : ""}" data-f="${k}">${n}</button>`).join("")}</div><span class="note">"See the terrain" leaves only outlines over the satellite image; the best cells keep a coloured outline.</span></div>
           <div id="disc-map" class="map disc-map"></div>
           ${state.dmode === "ml" ? `<div class="disc-legend">${ML.families.map((f) => `<span class="fam"><i style="background:${FAM_COLORS[f.id]}"></i>${esc(f.label)}</span>`).join("")}<span class="muted"><span class="lime">◆</span> our sites</span></div>`
             : `<div class="disc-legend"><span>${fmt(lo, 0)}</span><i style="background:linear-gradient(90deg,#13233A,${BODY_COLOR[state.dbody]})"></i><span>${fmt(hi, 0)}</span><span class="muted">similarity · <span class="lime">◆</span> our sites</span></div>`}
@@ -790,9 +791,12 @@
     const mix = (t) => { const a = [0x13, 0x23, 0x3a], b = BODY_COLOR[state.dbody].match(/\w\w/g).map((h) => parseInt(h, 16)); return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`; };
     const dlat = D.cell_km / 110.574 / 2;
     const rects = {};
+    const styleFor = (t, byML, fc) => state.dfill === "outline"
+      ? { weight: byML || t > 0.6 ? 1.6 : 0.6, color: byML ? fc : t > 0.6 ? BODY_COLOR[state.dbody] : "rgba(234,240,245,.35)", fillOpacity: 0 }
+      : { weight: 0.4, color: "#050B14", fillOpacity: byML ? 0.6 : 0.35 + 0.5 * t };
     let sel = null;
     const pick = (c, pan) => {
-      if (sel) sel.setStyle({ weight: 0.4, color: "#050B14" });
+      if (sel) sel.setStyle(sel._base);
       sel = rects[c._rank]; sel.setStyle({ weight: 2.5, color: "#B7FF00" }); sel.bringToFront();
       document.querySelectorAll(".disc-list li").forEach((li) => li.classList.toggle("on", Number(li.dataset.r) === c._rank));
       detail(c); if (pan) map.panTo([c.lat, c.lon]);
@@ -800,12 +804,19 @@
     cells.forEach((c) => {
       const dlon = D.cell_km / (111.32 * Math.cos((c.lat * Math.PI) / 180)) / 2;
       const t = (c[key] - lo) / Math.max(1e-6, hi - lo), byML = state.dmode === "ml" && c.f !== undefined;
-      rects[c._rank] = L.rectangle([[c.lat - dlat, c.lon - dlon], [c.lat + dlat, c.lon + dlon]], { weight: 0.4, color: "#050B14", fillColor: byML ? FAM_COLORS[c.f] : mix(t), fillOpacity: byML ? 0.6 : 0.35 + 0.5 * t })
+      const fc = byML ? FAM_COLORS[c.f] : mix(t);
+      const base = styleFor(t, byML, fc);
+      rects[c._rank] = L.rectangle([[c.lat - dlat, c.lon - dlon], [c.lat + dlat, c.lon + dlon]], { ...base, fillColor: fc })
         .bindTooltip(`#${c._rank} · ${fmt(c[key], 1)}${byML ? " · " + esc(ML.families[c.f].label) : ""}`, { sticky: true }).on("click", () => pick(c)).addTo(map);
+      rects[c._rank]._base = base; rects[c._rank]._st = [t, byML, fc];
     });
     known.forEach((s) => L.marker([s.lat, s.lon], { icon: L.divIcon({ className: "disc-site", html: `<span>◆ ${esc(s.info.short)}</span>`, iconSize: null }) }).addTo(map).on("click", () => { location.hash = `#field-${s.id}`; }));
     map.fitBounds([[Z.south, Z.west], [Z.north, Z.east]], { padding: [10, 10] });
     state.map = map;
+    $("#dfill-chips").onclick = (e) => { const b = e.target.closest("[data-f]"); if (!b) return;
+      state.dfill = b.dataset.f;
+      document.querySelectorAll("#dfill-chips .chip").forEach((x) => x.classList.toggle("on", x === b));
+      Object.values(rects).forEach((r) => { r._base = styleFor(...r._st); if (r !== sel) r.setStyle(r._base); }); };
     $("#disc-top").onclick = (e) => { const li = e.target.closest("li[data-r]"); if (li) pick(cells[Number(li.dataset.r) - 1], true); };
     pick(top[0]);
   }
