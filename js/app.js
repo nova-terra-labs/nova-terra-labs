@@ -1035,8 +1035,8 @@
     discover: [
       [".page-title", "Here the index searches a whole zone instead of sites we chose: every 10 × 10 km land cell gets a score.", "append"],
       ["#disc-controls", "Choose the search zone and whether to compare with Mars or the Moon.", "prepend"],
-      ["#live-card", "Your turn: click any place in the world to score it and find the most similar places. Live results are approximate.", "prepend"],
       ["#disc-top", "The best cells. Cells more than 50 km from any of our sites are marked as new finds; click one to see why it scores.", "prepend"],
+      ["#live-card", "Your turn: click any place in the world to score it and find the most similar places. Live results are approximate.", "prepend"],
     ],
     about: [[".steps", "How the index is built, in four steps."]],
   };
