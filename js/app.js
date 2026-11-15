@@ -844,7 +844,8 @@
     return { score: (100 * COMPONENT_ORDER.reduce((t2, k) => t2 + ws[k] * parts[k], 0)) / W, parts };
   }
   async function tilePixels(z, x, y) {
-    const r = await fetch(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`);
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 20000);
+    const r = await fetch(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`, { signal: ac.signal }).finally(() => clearTimeout(to));
     if (!r.ok) throw new Error("elevation tile " + r.status);
     const bmp = await createImageBitmap(await r.blob());
     const cv = document.createElement("canvas"); cv.width = 256; cv.height = 256;
@@ -853,9 +854,10 @@
     for (let i = 0; i < 65536; i++) h[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
     return h;
   }
-  // 10 x 10 km elevation grid at 30 m, resampled (bilinear) from Terrarium tiles at zoom 13
+  // 10 x 10 km elevation grid at 30 m, resampled (bilinear) from Terrarium tiles (zoom chosen for ≈20 m pixels)
   async function liveDem(lat, lon) {
-    const z = 13, n = 2 ** z, R = 6378137, half = 5000;
+    const R = 6378137, half = 5000;
+    const z = Math.max(8, Math.min(13, Math.round(Math.log2((2 * Math.PI * R * Math.cos((lat * Math.PI) / 180)) / (256 * 20))))), n = 2 ** z;  // ≈20 m source pixels
     const mx = (lo) => ((lo + 180) / 360) * n * 256;
     const my = (la) => { const s = Math.sin((la * Math.PI) / 180); return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n * 256; };
     const cx = mx(lon), cy = my(lat);
@@ -893,7 +895,8 @@
   }
   async function liveClimate(lat, lon, elev) {
     const u = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR&community=AG&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&start=20150101&end=20241231&format=JSON`;
-    const r = await fetch(u); if (!r.ok) throw new Error("NASA POWER " + r.status);
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 60000);
+    const r = await fetch(u, { signal: ac.signal }).finally(() => clearTimeout(to)); if (!r.ok) throw new Error("NASA POWER " + r.status);
     const j = await r.json(), P = j.properties.parameter, ge = (j.geometry && j.geometry.coordinates || [])[2];
     const ok = (v) => v !== null && v !== undefined && v > -900;
     const adj = ge !== undefined && ge !== null ? (-6.5 * (elev - ge)) / 1000 : 0;
