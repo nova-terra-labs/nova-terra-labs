@@ -15,6 +15,7 @@ We measure terrain and climate at 15 places on Earth and at two planetary target
 | **Bridge** | Mission start screen; choose Earth, Moon or Mars |
 | **Atlas** | 3D globe with the 15 analogue sites; filter by target (Moon / Mars) and environment; site insight with the real similarity score |
 | **Field log** | Per site: 3D terrain (Copernicus DEM + Sentinel-2 true colour, vertical exaggeration ×1–×10), satellite close-up of the 10 × 10 km square, all metrics vs the planetary target, similarity breakdown, terrain profile, Google Earth / NASA Worldview links, sources |
+| **Discover** | The same index on every 10 × 10 km land cell of three search zones (southern Peru, Atacama–Altiplano in Chile, Puna de Catamarca in Argentina): similarity map, top-10 cells, new finds, and terrain families from machine learning (k-means) |
 | **Compare** | Rankings for Mars and Moon analogues, the two planetary targets (including LRO Diviner temperatures), method, weights, known limitations, all sources |
 
 ## Results (similarity score 0–100)
@@ -31,6 +32,20 @@ We measure terrain and climate at 15 places on Earth and at two planetary target
 | Makgadikgadi Pans, Botswana | 16.6 | | |
 
 Data generated on 2026-11-14. See [docs/methodology.md](docs/methodology.md) for how the score is computed and its limitations.
+
+## Discover: searching whole zones
+
+The 15 sites were chosen by the team. **Discover** applies the same index to every 10 × 10 km land cell of three search zones (1,265 cells), so it can point to places nobody has proposed. A cell more than 50 km from all of our sites is marked as a *new find*.
+
+| Search zone | Cells | Best Mars cell | Best Moon cell |
+|---|---|---|---|
+| Southern Peru (Arequipa, Moquegua, Tacna) | 395 | 72.5 — 10 km from La Pampa de la Joya | 54.7 — new find near the coast of Moquegua–Tacna |
+| Atacama and Altiplano, Chile | 440 | **89.5 — new find**, 117 km from our nearest site | 64.6 — 11 km from Cerro Chao |
+| Puna de Catamarca, Argentina | 430 | 62.1 — 16 km from Campo de Piedra Pómez | 52.7 — new find |
+
+The search confirms our best sites (the top cells in Peru and for the Moon in Chile sit next to La Joya and Cerro Chao) and adds new leads, above all a hyper-arid plain in the Atacama whose slope (2.9°) is almost identical to Jezero's. A high score is a lead to check on imagery and in the field, not a confirmed analogue.
+
+**Machine learning.** An unsupervised k-means model (k = 3, chosen by silhouette score) groups the 1,265 cells into terrain families without using our weights or targets. All 20 best Mars cells fall in the *low-relief, hyper-arid* family, together with La Pampa de la Joya, the Atacama Desert and Salar de Pajonales. Code: `backend/app/discover.py` and `tools/ml_terrain_families.py`.
 
 ## Reference analogues and new candidates
 
@@ -56,7 +71,7 @@ No place on Earth reproduces these conditions. The index compares terrain and cl
 - **Water and ice:** Diviner ice-stability areas compared with permafrost and ground-ice data on Earth.
 - **Dust and wind:** wind and dust from NASA data compared with Perseverance MEDA measurements at Jezero.
 - **Caves and lava tubes:** lava tubes at the volcanic sites compared with lunar pits seen by LRO.
-- **Global search:** the same index on a grid over whole regions, to find analogues no one has proposed yet.
+- **Wider search:** extend Discover from three zones to whole countries and to the rest of the Americas.
 
 ## Repository structure
 

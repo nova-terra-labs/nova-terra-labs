@@ -415,3 +415,31 @@ ul.plain li { margin: 6px 0; }
 .tour-pill.off b { color: var(--muted); }
 .tour-pill.off i { background: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .tour-note { transition: none; transform: none; } }
+
+/* Discover */
+.disc-controls { display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: flex-end; }
+.disc-controls .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; color: var(--cyan); margin-bottom: 8px; }
+.disc-stats { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: #C6D0DB; margin-left: auto; }
+.disc-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: 18px; }
+.disc-map { height: 560px; }
+.disc-legend { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 8px; }
+.disc-legend i { flex: 0 0 160px; height: 8px; border-radius: 4px; }
+.disc-list { list-style: none; margin: 0; padding: 0; }
+.disc-list li { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 6px; border-bottom: 1px solid var(--line-soft); cursor: pointer; border-radius: 6px; }
+.disc-list li:hover, .disc-list li.on { background: rgba(183, 255, 0, .07); }
+.disc-list li.on { outline: 1px solid rgba(183, 255, 0, .5); }
+.disc-list .n { font-family: var(--font-mono); color: var(--muted); font-size: 12px; }
+.disc-list b { font-weight: 500; font-size: 13.5px; display: block; }
+.disc-list small { font-size: 12px; color: var(--muted); }
+.disc-list .score { font-family: var(--font-mono); color: var(--lime); font-weight: 600; }
+.disc-detail { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.disc-score { display: flex; gap: 12px; align-items: baseline; margin: 6px 0 10px; }
+.disc-score .score { font-size: 30px; color: var(--lime); font-weight: 700; }
+.disc-score .muted { font-size: 12.5px; }
+.disc-detail .bar-row { grid-template-columns: 150px 1fr 40px; }
+.disc-site span { white-space: nowrap; font: 600 11px var(--font-mono); color: var(--lime); text-shadow: 0 0 3px #000, 0 0 6px #000; }
+@media (max-width: 1100px) { .disc-grid { grid-template-columns: 1fr; } .disc-map { height: 420px; } }
+.fam i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.disc-legend .fam { display: inline-flex; align-items: center; margin-right: 10px; }
+.disc-legend { flex-wrap: wrap; }
+.disc-legend .fam i { flex: none; width: 10px; height: 10px; }

@@ -15,6 +15,7 @@
     bridge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
     atlas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>',
     field: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>',
+    discover: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M11 8v6M8 11h6"/></svg>',
     compare: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   };
   document.querySelectorAll("[data-route] .ico").forEach((el) => {
@@ -58,6 +59,7 @@
     ]);
     state.data = d;
     state.info = i;
+    state.discover = B && B.discover ? B.discover : await fetch("data/discover.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
     state.data.sites.forEach((s) => { s.info = i.sites[s.id] || { short: s.name, environment: [] }; });
     state.selected = ranked("Both")[0].id;
   }
@@ -87,6 +89,7 @@
     atlas: ["ATLAS", "EXPEDITION 02 / EARTH ANALOGUE SITES"],
     field: ["FIELD LOG", "EXPEDITION 03 / SITE DATA"],
     compare: ["COMPARE", "EXPEDITION 04 / RANKINGS & METHOD"],
+    discover: ["DISCOVER", "EXPEDITION 05 / SEARCH FOR NEW ANALOGUES"],
     about: ["THE PROJECT", "ABOUT / NASA SPACE APPS CHALLENGE 2026"],
   };
   function setChrome(route) {
@@ -94,7 +97,7 @@
     $("#topbar-name").textContent = n;
     $("#topbar-path").textContent = p;
     document.querySelectorAll("[data-route]").forEach((a) => a.classList.toggle("active", a.dataset.route === route));
-    const order = ["bridge", "atlas", "field", "compare"], cur = order.indexOf(route);
+    const order = ["bridge", "atlas", "field", "compare", "discover"], cur = order.indexOf(route);
     document.querySelectorAll(".mission-path [data-step]").forEach((a) => {
       const i = order.indexOf(a.dataset.step);
       a.classList.toggle("active", i === cur); a.classList.toggle("done", cur > -1 && i < cur);
@@ -664,7 +667,7 @@
       ${limitsCard()}
       ${resourcesCard()}
       <div class="card panel"><h3>Data sources</h3><ul class="src-list">${Object.keys(d.sources).map(sourceItem).join("")}</ul></div>
-      ${nextStep("02 Atlas", "Explore another site", `Go back to the globe and open any of the ${sites().length} field logs.`, "#atlas", "Back to the Atlas")}
+      ${nextStep("05 Discover", "Search a whole region", "The same index applied to every 10 × 10 km cell of a search zone, to find analogues nobody has proposed yet.", "#discover", "Open Discover")}
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((d.generated_utc || "").slice(0, 10))}</span></div>
     </section>`;
     if (typeof Plotly !== "undefined") ["Mars", "Moon"].forEach((b) => {
@@ -681,6 +684,107 @@
     });
   }
 
+  // ---------- Discover ----------
+  const haversine = (a, b, c, d) => { const R = 6371, r = Math.PI / 180, x = Math.sin(((c - a) * r) / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(((d - b) * r) / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+  const NEW_FIND_KM = 50;
+  const FAM_COLORS = ["#B7FF00", "#00D9FF", "#B36BFF", "#FFB020", "#FF5C8A", "#8293A5"];
+  function mlCard(ML, Z) {
+    const count = (arr, f) => arr.filter((x) => x === f).length;
+    const marsTop = ML.top20_mars_families, moonTop = ML.top20_moon_families;
+    const domM = ML.families.map((f) => [f, count(marsTop, f.id)]).sort((a, b) => b[1] - a[1])[0];
+    const domL = ML.families.map((f) => [f, count(moonTop, f.id)]).sort((a, b) => b[1] - a[1])[0];
+    const members = (f) => sites().filter((s) => ML.sites[s.id] === f.id).map((s) => esc(s.info.short)).join(", ") || "—";
+    return `<div class="card panel"><h3>Machine learning: terrain families <small>K-MEANS · ${ML.n_cells} CELLS · ${Object.keys(state.discover.zones).length} ZONES</small></h3>
+      <p class="note">An unsupervised algorithm (k-means, k = ${ML.k} chosen by silhouette score ${fmt(ML.silhouette, 2)}) grouped all ${ML.n_cells} cells by their four metrics, <b>without our weights or targets</b>. Our ${sites().length} sites were then placed in the nearest family.</p>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Family</th><th>Cells</th><th>Median slope °</th><th>Roughness m</th><th>Precip mm</th><th>Temp range °C</th><th>Mean Mars score</th><th>Mean Moon score</th><th>Our sites in it</th></tr></thead>
+      <tbody>${ML.families.map((f) => `<tr><td><span class="fam"><i style="background:${FAM_COLORS[f.id]}"></i></span><b>${esc(f.label)}</b></td><td class="num">${f.n}</td><td class="num">${fmt(f.median.slope_mean_deg, 1)}</td><td class="num">${fmt(f.median.roughness_m, 2)}</td><td class="num">${fmt(f.median.precip_annual_mm, 0)}</td><td class="num">${fmt(f.median.temp_range_c, 1)}</td><td class="num">${fmt(f.mars_mean, 1)}</td><td class="num">${fmt(f.moon_mean, 1)}</td><td>${members(f)}</td></tr>`).join("")}</tbody></table></div>
+      <p class="note" style="margin-top:10px"><b>What it shows:</b> ${domM[1]} of the 20 best Mars cells fall in the "${esc(domM[0].label)}" family, the same family as ${members(domM[0])}. For the Moon, ${domL[1]} of the 20 best cells are in "${esc(domL[0].label)}": the Moon score is driven mostly by aridity, so the families separate Mars-like plains more clearly than Moon-like terrain. The families describe terrain and climate types; they do not decide which target a site resembles.</p></div>`;
+  }
+  function renderDiscover(param) {
+    const D = state.discover;
+    if (!D || !Object.keys(D.zones || {}).length) {
+      view.innerHTML = `<section class="page"><div class="page-title"><div class="eyebrow">Expedition 05 / Discover</div><h1>Search for new analogues</h1><p>The zone search has not been generated yet.</p></div></section>`;
+      return;
+    }
+    const zones = Object.keys(D.zones);
+    if (!state.zone || !D.zones[state.zone]) state.zone = zones[0];
+    if (param) state.dbody = param.toLowerCase() === "moon" ? "Moon" : "Mars";
+    if (!state.dbody) state.dbody = "Mars";
+    const Z = D.zones[state.zone], key = state.dbody === "Mars" ? "mars" : "moon", ckey = key + "_c";
+    const ML = D.ml || null;
+    if (!state.dmode || !ML) state.dmode = state.dmode && ML ? state.dmode : "score";
+    const tgt = Object.values(state.data.targets).find((t) => t.body === state.dbody);
+    const known = sites().filter((s) => s.lat >= Z.south - 0.05 && s.lat <= Z.north + 0.05 && s.lon >= Z.west - 0.05 && s.lon <= Z.east + 0.05);
+    const nearest = (c) => sites().map((s) => ({ s, d: haversine(c.lat, c.lon, s.lat, s.lon) })).sort((a, b) => a.d - b.d)[0];
+    const cells = Z.cells.slice().sort((a, b) => b[key] - a[key]);
+    cells.forEach((c, i) => { c._rank = i + 1; c._near = nearest(c); });
+    const top = cells.slice(0, 10);
+    const best = ranked(state.dbody)[0];
+    const lo = cells[cells.length - 1][key], hi = cells[0][key];
+    view.innerHTML = `
+    <section class="page">
+      <div class="page-title"><div class="eyebrow">Expedition 05 / Discover</div><h1>Search for new analogues</h1>
+        <p>The ${sites().length} sites were chosen by us. Here the same index scores <b>every 10 × 10 km land cell</b> of a search zone, so it can point to places nobody has proposed.</p></div>
+      <div class="card panel disc-controls" id="disc-controls">
+        <div><div class="label">SEARCH ZONE</div><div class="chips" id="zone-chips">${zones.map((z) => `<button class="chip${z === state.zone ? " on" : ""}" data-zone="${z}">${esc(D.zones[z].name)}</button>`).join("")}</div></div>
+        <div><div class="label">COMPARE WITH</div><div class="chips" id="dbody-chips">${["Mars", "Moon"].map((b) => `<button class="chip${b === state.dbody ? " on" : ""}" data-b="${b}">${b}</button>`).join("")}</div></div>
+        ${ML ? `<div><div class="label">COLOUR MAP BY</div><div class="chips" id="dmode-chips">${[["score", "Similarity"], ["ml", "Terrain family (ML)"]].map(([k, n]) => `<button class="chip${k === state.dmode ? " on" : ""}" data-m="${k}">${n}</button>`).join("")}</div></div>` : ""}
+        <div class="disc-stats"><span><b>${Z.cells.length}</b> land cells</span><span>best <b class="lime">${fmt(hi, 1)}</b></span><span>our #1 ${esc(state.dbody)} site: <b>${esc(best.info.short)} ${fmt(best.similarity.score, 1)}</b></span></div>
+      </div>
+      <div class="disc-grid">
+        <div class="card panel"><h3>Similarity map <small>${esc(Z.name.toUpperCase())} · VS ${esc(tgt.name.split(" — ")[0].toUpperCase())}</small></h3>
+          <div id="disc-map" class="map disc-map"></div>
+          ${state.dmode === "ml" ? `<div class="disc-legend">${ML.families.map((f) => `<span class="fam"><i style="background:${FAM_COLORS[f.id]}"></i>${esc(f.label)}</span>`).join("")}<span class="muted"><span class="lime">◆</span> our sites</span></div>`
+            : `<div class="disc-legend"><span>${fmt(lo, 0)}</span><i style="background:linear-gradient(90deg,#13233A,${BODY_COLOR[state.dbody]})"></i><span>${fmt(hi, 0)}</span><span class="muted">similarity · <span class="lime">◆</span> our sites</span></div>`}
+        </div>
+        <div class="card panel" id="disc-top"><h3>Top 10 cells <small>CLICK FOR DETAILS</small></h3>
+          <ol class="disc-list">${top.map((c) => `<li data-r="${c._rank}"><span class="n">${c._rank}</span><span><b>${fmt(c.lat, 3)}°, ${fmt(c.lon, 3)}°</b><small>${c._near.d > NEW_FIND_KM ? '<span class="tag cat-new">New find</span> ' : ""}${fmt(c._near.d, 0)} km from ${esc(c._near.s.info.short)} · ${fmt(c.elev, 0)} m</small></span><span class="score">${fmt(c[key], 1)}</span></li>`).join("")}</ol>
+          <div id="disc-detail"></div>
+        </div>
+      </div>
+      <div class="card panel"><h3>How the search works</h3><p class="note">${esc(D.method)} Ocean cells are skipped (${Z.skipped_ocean_cells}). A cell is marked <b>New find</b> when it is more than ${NEW_FIND_KM} km from all of our ${sites().length} sites. Scores are for a 10 × 10 km square: a high score is a lead to check on satellite imagery and in the field, not a confirmed analogue. Generated ${esc((Z.generated_utc || "").slice(0, 10))}.</p></div>
+      ${ML ? mlCard(ML, Z) : ""}
+      ${nextStep("02 Atlas", "Explore the analogue sites", `Go back to the globe and open any of the ${sites().length} field logs.`, "#atlas", "Back to the Atlas")}
+      <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
+    </section>`;
+    $("#zone-chips").onclick = (e) => { const b = e.target.closest("[data-zone]"); if (b) { state.zone = b.dataset.zone; route(); } };
+    if ($("#dmode-chips")) $("#dmode-chips").onclick = (e) => { const b = e.target.closest("[data-m]"); if (b) { state.dmode = b.dataset.m; route(); } };
+    $("#dbody-chips").onclick = (e) => { const b = e.target.closest("[data-b]"); if (b) { location.hash = `#discover-${b.dataset.b.toLowerCase()}`; } };
+    const detail = (c) => {
+      $("#disc-detail").innerHTML = `<div class="disc-detail">
+        <div class="eyebrow plain">Cell #${c._rank} · ${fmt(c.lat, 3)}°, ${fmt(c.lon, 3)}°</div>
+        <div class="disc-score"><span class="score">${fmt(c[key], 1)}</span><span class="muted">vs ${esc(state.dbody)} · nearest of our sites: ${esc(c._near.s.info.short)} (${fmt(c._near.d, 0)} km, ${fmt(c._near.s.similarity.score, 1)})</span></div>
+        <div class="bars">${COMPONENT_ORDER.map((k) => `<div class="bar-row"><span>${METRIC_LABELS[k][0]}</span><div class="bar"><div style="width:${Math.max(0, Math.min(100, c[ckey][k]))}%"></div></div><span class="v">${fmt(c[ckey][k], 0)}</span></div>`).join("")}</div>
+        ${ML && c.f !== undefined ? `<p class="note"><span class="fam"><i style="background:${FAM_COLORS[c.f]}"></i></span>Terrain family (ML): <b>${esc(ML.families[c.f].label)}</b></p>` : ""}
+        <p class="note">Slope ${fmt(c.slope_mean_deg, 1)}° · roughness ${fmt(c.roughness_m, 2)} m · temperature range ${fmt(c.temp_range_c, 1)} °C · precipitation ${fmt(c.precip_annual_mm, 0)} mm/yr · elevation ${fmt(c.elev, 0)} m · relief ${fmt(c.relief, 0)} m</p>
+        <div class="links"><a class="btn btn-secondary" href="https://earth.google.com/web/@${c.lat},${c.lon},${c.elev}a,16000d,35y,0h,45t,0r" target="_blank" rel="noopener">Google Earth <span class="arrow">↗</span></a><a class="btn btn-secondary" href="https://worldview.earthdata.nasa.gov/?v=${c.lon - 0.3},${c.lat - 0.2},${c.lon + 0.3},${c.lat + 0.2}" target="_blank" rel="noopener">NASA Worldview <span class="arrow">↗</span></a></div></div>`;
+    };
+    if (typeof L === "undefined") return;
+    const map = L.map("disc-map", { zoomControl: true, scrollWheelZoom: false });
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, attribution: "Imagery © Esri, Maxar, Earthstar Geographics" }).addTo(map);
+    const mix = (t) => { const a = [0x13, 0x23, 0x3a], b = BODY_COLOR[state.dbody].match(/\w\w/g).map((h) => parseInt(h, 16)); return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`; };
+    const dlat = D.cell_km / 110.574 / 2;
+    const rects = {};
+    let sel = null;
+    const pick = (c, pan) => {
+      if (sel) sel.setStyle({ weight: 0.4, color: "#050B14" });
+      sel = rects[c._rank]; sel.setStyle({ weight: 2.5, color: "#B7FF00" }); sel.bringToFront();
+      document.querySelectorAll(".disc-list li").forEach((li) => li.classList.toggle("on", Number(li.dataset.r) === c._rank));
+      detail(c); if (pan) map.panTo([c.lat, c.lon]);
+    };
+    cells.forEach((c) => {
+      const dlon = D.cell_km / (111.32 * Math.cos((c.lat * Math.PI) / 180)) / 2;
+      const t = (c[key] - lo) / Math.max(1e-6, hi - lo), byML = state.dmode === "ml" && c.f !== undefined;
+      rects[c._rank] = L.rectangle([[c.lat - dlat, c.lon - dlon], [c.lat + dlat, c.lon + dlon]], { weight: 0.4, color: "#050B14", fillColor: byML ? FAM_COLORS[c.f] : mix(t), fillOpacity: byML ? 0.6 : 0.35 + 0.5 * t })
+        .bindTooltip(`#${c._rank} · ${fmt(c[key], 1)}${byML ? " · " + esc(ML.families[c.f].label) : ""}`, { sticky: true }).on("click", () => pick(c)).addTo(map);
+    });
+    known.forEach((s) => L.marker([s.lat, s.lon], { icon: L.divIcon({ className: "disc-site", html: `<span>◆ ${esc(s.info.short)}</span>`, iconSize: null }) }).addTo(map).on("click", () => { location.hash = `#field-${s.id}`; }));
+    map.fitBounds([[Z.south, Z.west], [Z.north, Z.east]], { padding: [10, 10] });
+    state.map = map;
+    $("#disc-top").onclick = (e) => { const li = e.target.closest("li[data-r]"); if (li) pick(cells[Number(li.dataset.r) - 1], true); };
+    pick(top[0]);
+  }
+
   // ---------- About ----------
   function renderAbout() {
     view.innerHTML = `
@@ -695,7 +799,7 @@
         ${step("01", "Measure terrain", "Copernicus DEM (30 m) on Earth; USGS CTX DTM for Jezero and NASA LOLA (5 m) for the Moon, all compared at ≈30 m. Slope and roughness for each 10 × 10 km square.")}
         ${step("02", "Measure climate", "NASA POWER daily data (MERRA-2), 2015–2024: daily temperature range and annual precipitation, adjusted to site elevation.")}
         ${step("03", "Score similarity", "Four partial scores — slope, roughness, aridity and temperature range — combined into one 0–100 index with fixed weights.")}
-        ${step("04", "Explore", "Globe, satellite close-ups, 3D terrain with Sentinel-2 colour, terrain profiles and full source list for every site.")}
+        ${step("04", "Explore and discover", "Globe, satellite close-ups, 3D terrain and profiles for every site; Discover searches whole zones cell by cell, with machine-learning terrain families.")}
       </div>
       <div class="card panel"><h3>Reference analogues and new candidates</h3><p class="note">Eight of our sites are <b>reference analogues</b>: well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Seven are <b>new candidates</b> that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi, Cerro Chao, Monturaqui). A new candidate that scores as high as a reference site is a strong lead: La Pampa de la Joya ranks first among all Mars analogues, above the Atacama Desert, and Cerro Chao ranks first among all Moon analogues, above Lanzarote. Cerro Chao and Monturaqui are new <b>lunar</b> candidates in the Atacama, a region known mainly for Mars analogues: what makes them lunar analogues is the landform (a silicic lava dome, a simple impact crater), not the region.</p></div>
       ${limitsCard()}
@@ -704,7 +808,7 @@
         <li><b>Water and ice:</b> compare Diviner ice-stability areas with permafrost and ground-ice data on Earth.</li>
         <li><b>Dust and wind:</b> add wind and dust from NASA data and compare with Perseverance MEDA measurements at Jezero.</li>
         <li><b>Caves and lava tubes:</b> map lava tubes at the volcanic sites against lunar pits seen by LRO.</li>
-        <li><b>Global search:</b> run the same index on a grid over whole regions to find analogues no one has proposed yet.</li></ul></div>
+        <li><b>Wider search:</b> extend Discover from three zones to whole countries and to the rest of the Americas.</li></ul></div>
       ${resourcesCard()}
       <div class="card panel"><h3>Team</h3><p class="note"><b>NovaTerra Labs</b> — NASA Space Apps Challenge 2026: Fátima Herrera (team owner) and Romy Lostaunau, Peru <svg class="flag-pe" viewBox="0 0 3 2" role="img" aria-label="Flag of Peru"><rect width="3" height="2" fill="#D91023"/><rect x="1" width="1" height="2" fill="#fff"/></svg>. Data pipeline developed in Google Colab (Python); this app is a static site with no build step, ready for GitHub Pages.</p></div>
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
@@ -733,6 +837,11 @@
       [".target-card", "These are the two planetary targets every Earth site is measured against.", "prepend"],
       [".table-wrap", "All sites ranked. The four last columns are the partial scores behind each total."],
       [".res-list", "Which of the challenge's suggested data resources we used."],
+    ],
+    discover: [
+      [".page-title", "Here the index searches a whole zone instead of sites we chose: every 10 × 10 km land cell gets a score.", "append"],
+      ["#disc-controls", "Choose the search zone and whether to compare with Mars or the Moon.", "prepend"],
+      ["#disc-top", "The best cells. Cells more than 50 km from any of our sites are marked as new finds; click one to see why it scores.", "prepend"],
     ],
     about: [[".steps", "How the index is built, in four steps."]],
   };
@@ -769,13 +878,13 @@
     let r, param;
     if (h.includes("/")) [r, param] = h.split("/");
     else { const i = h.indexOf("-"); r = i < 0 ? h : h.slice(0, i); param = i < 0 ? "" : h.slice(i + 1); }
-    const name = ["bridge", "atlas", "field", "compare", "about"].includes(r) ? r : "bridge";
+    const name = ["bridge", "atlas", "field", "compare", "discover", "about"].includes(r) ? r : "bridge";
     if (name === "atlas" && param) param = { moon: "Moon", mars: "Mars", both: "Both" }[param.toLowerCase()] || param;
     teardown();
     setChrome(name);
     view.classList.toggle("is-bridge", name === "bridge");
     window.scrollTo(0, 0);
-    ({ bridge: renderBridge, atlas: renderAtlas, field: renderField, compare: renderCompare, about: renderAbout })[name](param || undefined);
+    ({ bridge: renderBridge, atlas: renderAtlas, field: renderField, compare: renderCompare, discover: renderDiscover, about: renderAbout })[name](param || undefined);
     tour(name);
   }
 
