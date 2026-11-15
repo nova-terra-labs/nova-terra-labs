@@ -40,6 +40,9 @@
     breaks: "The scored metric where this site differs most from the planetary target.",
   };
   const info = (k) => `<span class="info" tabindex="0" role="note" aria-label="${esc(TIPS[k])}" data-tip="${esc(TIPS[k])}">i</span>`;
+  const CAT = { reference: "Reference analogue", new: "New candidate" };
+  const catTag = (s) => s.info.category ? `<span class="tag cat-${s.info.category}" title="${esc((state.info.categories || {})[s.info.category] || "")}">${CAT[s.info.category]}</span>` : "";
+  TIPS.category = "Reference analogues are well-studied sites already used by space agencies; they benchmark the index. New candidates are less-studied sites that score as well as, or better than, the references.";
   const COMPONENT_ORDER = ["slope_mean_deg", "roughness_m", "precip_annual_mm", "temp_range_c"];
   const BODY_COLOR = { Mars: "#FF7A45", Moon: "#00D9FF" };
 
@@ -142,6 +145,13 @@
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
     </section>`;
   }
+  // one line comparing the best new candidate with the best reference analogue (Mars)
+  function headline() {
+    const r = ranked("Mars"), n = r.find((s) => s.info.category === "new"), ref = r.find((s) => s.info.category === "reference");
+    if (!n || !ref) return "";
+    const above = n.similarity.score > ref.similarity.score;
+    return `<p class="headline"><span class="tag cat-new">New candidate</span> ${esc(n.info.short)} (${fmt(n.similarity.score, 1)}) ${above ? "scores above" : "is close to"} ${esc(ref.info.short)} (${fmt(ref.similarity.score, 1)}), the top-scoring reference analogue for Mars.</p>`;
+  }
   function findings() {
     const row = (b) => { const s = ranked(b)[0]; return `
       <a class="finding" href="#field-${s.id}">
@@ -153,6 +163,7 @@
       <div class="eyebrow">Mission findings</div>
       <p>Best Earth analogues, scored 0–100 on terrain and climate ${info("score")}</p>
       ${row("Mars")}${row("Moon")}
+      ${headline()}
       <a class="see-all" href="#compare">See all ${sites().length} sites ranked →</a>
     </div>`;
   }
@@ -165,11 +176,12 @@
 
   // ---------- Atlas ----------
   function visibleSites() {
-    return ranked(state.body).filter((s) => !state.envs.size || s.info.environment.some((e) => state.envs.has(e)));
+    return ranked(state.body).filter((s) => (!state.envs.size || s.info.environment.some((e) => state.envs.has(e))) && (!state.cats || !state.cats.size || state.cats.has(s.info.category)));
   }
   function renderAtlas(param) {
     if (param && ["Moon", "Mars", "Both"].includes(param)) state.body = param;
     const envs = state.info.environments;
+    state.cats = state.cats || new Set();
     view.innerHTML = `
     <section class="page atlas">
       <div class="atlas-left">
@@ -182,6 +194,8 @@
           <h3>Shape your search</h3>
           <div class="label">TARGET</div>
           <div class="chips" id="body-chips">${["Moon", "Mars", "Both"].map((b) => `<button class="chip${state.body === b ? " on" : ""}" data-body="${b}">${b}</button>`).join("")}</div>
+          <div class="label">SITE TYPE ${info("category")}</div>
+          <div class="chips" id="cat-chips">${Object.entries(CAT).map(([k, n]) => `<button class="chip${state.cats.has(k) ? " on" : ""}" data-cat="${k}">${n}</button>`).join("")}</div>
           <div class="label">ENVIRONMENT</div>
           <div class="chips" id="env-chips">${envs.map((e) => `<button class="chip${state.envs.has(e) ? " on" : ""}" data-env="${e}">${e}</button>`).join("")}</div>
           <p class="hint" id="atlas-count"></p>
@@ -202,6 +216,11 @@
       state.body = b.dataset.body; history.replaceState(null, "", `#atlas${state.body === "Both" ? "" : "-" + state.body.toLowerCase()}`); refreshAtlas(true);
       document.querySelectorAll("#body-chips .chip").forEach((c) => c.classList.toggle("on", c.dataset.body === state.body));
     });
+    $("#cat-chips").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-cat]"); if (!b) return;
+      const v = b.dataset.cat; state.cats.has(v) ? state.cats.delete(v) : state.cats.add(v);
+      b.classList.toggle("on"); refreshAtlas(true);
+    });
     $("#env-chips").addEventListener("click", (e) => {
       const b = e.target.closest("[data-env]"); if (!b) return;
       const v = b.dataset.env; state.envs.has(v) ? state.envs.delete(v) : state.envs.add(v);
@@ -217,7 +236,7 @@
     $("#site-strip").innerHTML = list.map((s, i) => `
       <a class="site-card panel${s.id === state.selected ? " sel" : ""}" data-id="${s.id}">
         <span class="n">${String(i + 1).padStart(2, "0")}</span>
-        <span><b>${esc(s.info.short)}</b><small>${esc(s.country)} · ${s.analog_of} · ${fmt(s.similarity.score, 1)}</small></span>
+        <span><b>${esc(s.info.short)}</b><small>${esc(s.country)} · ${s.analog_of} · ${fmt(s.similarity.score, 1)}${s.info.category === "new" ? ' · <span class="lime">New</span>' : ""}</small></span>
         <span class="go">→</span></a>`).join("");
     $("#site-strip").onclick = (e) => { const c = e.target.closest("[data-id]"); if (c) selectSite(c.dataset.id, true); };
     renderInsight();
@@ -241,7 +260,7 @@
     box.innerHTML = `
       <div class="eyebrow plain">Site insight</div>
       <div><h2>${esc(s.info.short)}</h2><div class="meta">${esc(s.country.toUpperCase())} · ${fmt(s.lat, 3)}°, ${fmt(s.lon, 3)}°</div></div>
-      <div><span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span> ${s.info.environment.map((e) => `<span class="tag" style="color:var(--muted)">${esc(e)}</span>`).join(" ")}</div>
+      <div><span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span> ${catTag(s)} ${info("category")} ${s.info.environment.map((e) => `<span class="tag" style="color:var(--muted)">${esc(e)}</span>`).join(" ")}</div>
       <div><div class="k">WHY IT MATTERS</div><p>${esc(s.info.why || s.name)}</p></div>
       <div><div class="k">EXPLORATION USE</div><p>${esc(s.info.use || "—")}</p></div>
       <div><div class="k">WHERE THE ANALOGY BREAKS ${info("breaks")}</div><p>${esc(breaksText(s))}</p></div>
@@ -306,7 +325,7 @@
           <h1 style="margin-top:8px">${esc(s.name)}</h1>
           <div class="coords">${esc(s.country)} · ${fmt(s.lat, 4)}°, ${fmt(s.lon, 4)}° · ${state.data.analysis_area_km} × ${state.data.analysis_area_km} km square</div>
         </div>
-        <span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span>
+        <span class="tag ${s.analog_of.toLowerCase()}">${s.analog_of} analogue</span> ${catTag(s)}
         <div class="score-box" style="min-width:230px"><span><small>Similarity score ${info("score")}</small><small>Rank #${rankOf(s)} of ${ranked(s.analog_of).length}</small></span><span class="score">${fmt(s.similarity.score, 1)}</span></div>
         <select id="site-select" aria-label="Choose site">${["Mars", "Moon"].map((b) => `<optgroup label="${b} analogues">${ranked(b).map((x) => `<option value="${x.id}"${x.id === s.id ? " selected" : ""}>${esc(x.info.short)} · ${fmt(x.similarity.score, 1)}</option>`).join("")}</optgroup>`).join("")}</select>
       </div>
@@ -499,6 +518,20 @@
   const resourcesCard = () => `<div class="card panel"><h3>Challenge resources used <small>FROM THE SPACE APPS RESOURCE LIST</small></h3>
     <ul class="res-list">${CHALLENGE_RESOURCES.map(([u, n, t]) => `<li class="${u ? "used" : "unused"}"><i>${u ? "✓" : "–"}</i><b>${n}</b><span>${t}</span></li>`).join("")}</ul></div>`;
 
+  // Earth cannot reproduce these conditions (values from NASA fact sheets and in-situ measurements)
+  const LIMITS = [
+    ["Surface gravity", "9.81 m/s² (1 g)", "1.62 m/s² (0.17 g)", "3.71 m/s² (0.38 g)"],
+    ["Surface pressure", "≈1013 hPa", "≈0 (exosphere, near vacuum)", "≈6 hPa"],
+    ["Atmosphere", "N₂ 78 %, O₂ 21 %", "negligible (exosphere)", "CO₂ ≈95 %"],
+    ["Surface radiation dose", "≈0.007 mSv/day", "≈1.37 mSv/day (Chang'e 4)", "≈0.67 mSv/day (Curiosity RAD)"],
+    ["Length of day", "24 h", "≈29.5 Earth days", "≈24 h 40 min"],
+  ];
+  const limitsCard = () => `<div class="card panel"><h3>Earth's limits as an analogue <small>APPLIES TO EVERY SITE</small></h3>
+    <div class="table-wrap"><table class="data"><thead><tr><th></th><th>Earth</th><th>Moon</th><th>Mars</th></tr></thead>
+    <tbody>${LIMITS.map((r) => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("")}</tbody></table></div>
+    <p class="note" style="margin-top:10px">No place on Earth reproduces reduced gravity, the lunar vacuum, the thin Martian atmosphere or their radiation environments. Our index compares terrain and climate only; these differences apply equally to all 13 sites.
+    Sources: NASA NSSDCA Moon and Mars fact sheets; Zhang et al. (2020), Science Advances, <a class="cyan" href="https://doi.org/10.1126/sciadv.aaz1334" target="_blank" rel="noopener">doi:10.1126/sciadv.aaz1334</a>; Hassler et al. (2014), Science, <a class="cyan" href="https://doi.org/10.1126/science.1244797" target="_blank" rel="noopener">doi:10.1126/science.1244797</a>.</p></div>`;
+
   // ---------- Compare ----------
   function renderCompare() {
     const d = state.data;
@@ -520,9 +553,9 @@
       <div class="card panel">
         <h3>${body} analogues <small>VS ${esc(Object.values(d.targets).find((t) => t.body === body).name.toUpperCase())}</small></h3>
         <div class="table-wrap"><table class="data">
-          <thead><tr><th>#</th><th>Site</th><th>Country</th><th>Score</th><th>Slope °</th><th>Roughness m</th><th>Temp range °C</th><th>Precip mm</th><th>Slope</th><th>Rough.</th><th>Aridity</th><th>Temp</th></tr></thead>
+          <thead><tr><th>#</th><th>Site</th><th>Type</th><th>Country</th><th>Score</th><th>Slope °</th><th>Roughness m</th><th>Temp range °C</th><th>Precip mm</th><th>Slope</th><th>Rough.</th><th>Aridity</th><th>Temp</th></tr></thead>
           <tbody>${ranked(body).map((s, i) => `<tr>
-            <td class="num">${i + 1}</td><td><a href="#field-${s.id}">${esc(s.info.short)}</a></td><td>${esc(s.country)}</td>
+            <td class="num">${i + 1}</td><td><a href="#field-${s.id}">${esc(s.info.short)}</a></td><td>${catTag(s)}</td><td>${esc(s.country)}</td>
             <td class="num lime">${fmt(s.similarity.score, 1)}</td>
             <td class="num">${fmt(mv(s, "slope_mean_deg"))}</td><td class="num">${fmt(mv(s, "roughness_m"))}</td><td class="num">${fmt(mv(s, "temp_range_c"))}</td><td class="num">${fmt(mv(s, "precip_annual_mm"))}</td>
             ${COMPONENT_ORDER.map((k) => `<td class="num muted">${fmt(s.similarity.components[k], 0)}</td>`).join("")}</tr>`).join("")}</tbody>
@@ -544,6 +577,7 @@
             <li>Analysis area: ${d.analysis_area_km} × ${d.analysis_area_km} km per site; all terrain compared at ≈30 m.</li></ul></div>
         <div class="card panel"><h3>Known limitations</h3><ul class="plain">${d.known_limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>
       </div>
+      ${limitsCard()}
       ${resourcesCard()}
       <div class="card panel"><h3>Data sources</h3><ul class="src-list">${Object.keys(d.sources).map(sourceItem).join("")}</ul></div>
       ${nextStep("02 Atlas", "Explore another site", "Go back to the globe and open any of the 13 field logs.", "#atlas", "Back to the Atlas")}
@@ -557,7 +591,7 @@
         hovertemplate: "%{y}: %{x:.1f} points<extra>" + METRIC_LABELS[k][0] + "</extra>",
       })), {
         barmode: "stack", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: "#EAF0F5", family: "Inter", size: 12 },
-        margin: { l: 130, r: 16, t: 34, b: 44 }, legend: { orientation: "h", y: 1.0, yanchor: "bottom", x: 0, traceorder: "normal", font: { size: 11 } },
+        margin: { l: 130, r: 16, t: 34, b: 44 }, legend: { orientation: "h", y: 1.0, yanchor: "bottom", x: 0, traceorder: "normal", font: { size: 11 }, entrywidthmode: "pixels", entrywidth: 120 },
         xaxis: { title: { text: "Weighted contribution to score (0–100)" }, range: [0, 100], gridcolor: "rgba(130,147,165,.18)" },
       }, { responsive: true, displaylogo: false, displayModeBar: false });
     });
@@ -579,6 +613,14 @@
         ${step("03", "Score similarity", "Four partial scores — slope, roughness, aridity and temperature range — combined into one 0–100 index with fixed weights.")}
         ${step("04", "Explore", "Globe, satellite close-ups, 3D terrain with Sentinel-2 colour, terrain profiles and full source list for every site.")}
       </div>
+      <div class="card panel"><h3>Reference analogues and new candidates</h3><p class="note">Eight of our sites are <b>reference analogues</b>: well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Five are <b>new candidates</b> that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi). A new candidate that scores as high as a reference site is a strong lead: La Pampa de la Joya ranks first among all Mars analogues, above the Atacama Desert.</p></div>
+      ${limitsCard()}
+      <div class="card panel"><h3>Next steps</h3><ul class="plain">
+        <li><b>Illumination:</b> add LOLA illumination maps for the lunar south pole and sunlight duration for each Earth site.</li>
+        <li><b>Water and ice:</b> compare Diviner ice-stability areas with permafrost and ground-ice data on Earth.</li>
+        <li><b>Dust and wind:</b> add wind and dust from NASA data and compare with Perseverance MEDA measurements at Jezero.</li>
+        <li><b>Caves and lava tubes:</b> map lava tubes at the volcanic sites against lunar pits seen by LRO.</li>
+        <li><b>Global search:</b> run the same index on a grid over whole regions to find analogues no one has proposed yet.</li></ul></div>
       ${resourcesCard()}
       <div class="card panel"><h3>Team</h3><p class="note"><b>NovaTerra Labs</b> — NASA Space Apps Challenge 2026: Fátima Herrera (team owner) and Romy Lostaunau, Peru. Data pipeline developed in Google Colab (Python); this app is a static site with no build step, ready for GitHub Pages.</p></div>
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>

@@ -32,6 +32,30 @@ We measure terrain and climate at 13 places on Earth and at two planetary target
 
 Data generated on 2026-11-14. See [docs/methodology.md](docs/methodology.md) for how the score is computed and its limitations.
 
+## Reference analogues and new candidates
+
+Eight sites are **reference analogues** — well-studied places already used by NASA and other agencies (Atacama, Haughton, McMurdo Dry Valleys, Askja, Mauna Kea, Meteor Crater, Craters of the Moon, Lanzarote). They benchmark the index. Five are **new candidates** that have received much less attention (La Pampa de la Joya, Salar de Pajonales, Campo de Piedra Pómez, Andahua, Makgadikgadi). A new candidate that scores as high as a reference site is a strong lead: **La Pampa de la Joya ranks first among all Mars analogues (66.5), above the Atacama Desert (56.7).**
+
+## Earth's limits as an analogue
+
+| | Earth | Moon | Mars |
+|---|---|---|---|
+| Surface gravity | 9.81 m/s² (1 g) | 1.62 m/s² (0.17 g) | 3.71 m/s² (0.38 g) |
+| Surface pressure | ≈1013 hPa | ≈0 (exosphere, near vacuum) | ≈6 hPa |
+| Atmosphere | N₂ 78 %, O₂ 21 % | negligible (exosphere) | CO₂ ≈95 % |
+| Surface radiation dose | ≈0.007 mSv/day | ≈1.37 mSv/day (Chang'e 4) | ≈0.67 mSv/day (Curiosity RAD) |
+| Length of day | 24 h | ≈29.5 Earth days | ≈24 h 40 min |
+
+No place on Earth reproduces these conditions. The index compares terrain and climate only; these differences apply equally to all sites. Sources: NASA NSSDCA Moon and Mars fact sheets; Zhang et al. (2020), *Science Advances*, doi:10.1126/sciadv.aaz1334; Hassler et al. (2014), *Science*, doi:10.1126/science.1244797.
+
+## Next steps
+
+- **Illumination:** LOLA illumination maps for the lunar south pole and sunlight duration for each Earth site.
+- **Water and ice:** Diviner ice-stability areas compared with permafrost and ground-ice data on Earth.
+- **Dust and wind:** wind and dust from NASA data compared with Perseverance MEDA measurements at Jezero.
+- **Caves and lava tubes:** lava tubes at the volcanic sites compared with lunar pits seen by LRO.
+- **Global search:** the same index on a grid over whole regions, to find analogues no one has proposed yet.
+
 ## Repository structure
 
 ```

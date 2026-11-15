@@ -17,7 +17,8 @@
    "use": "Test life-detection methods and instruments on Mars-like soils.",
    "reference": "Valdivia-Silva et al. (2011), Geochimica et Cosmochimica Acta. doi:10.1016/j.gca.2011.01.017",
    "url": "https://doi.org/10.1016/j.gca.2011.01.017",
-   "review": false
+   "review": false,
+   "category": "new"
   },
   "andahua": {
    "short": "Andahua",
@@ -28,7 +29,8 @@
    "use": "Study volcanic morphology, surface roughness and terrain accessibility.",
    "reference": "Smithsonian Global Volcanism Program, Andahua-Orcopampa (354004)",
    "url": "https://volcano.si.edu/volcano.cfm?vn=354004",
-   "review": false
+   "review": false,
+   "category": "new"
   },
   "atacama": {
    "short": "Atacama",
@@ -39,7 +41,8 @@
    "use": "NASA has used it to test drilling and life-detection technologies for Mars.",
    "reference": "Azua-Bustos et al. (2022), Frontiers in Astronomy and Space Sciences. doi:10.3389/fspas.2021.810426",
    "url": "https://doi.org/10.3389/fspas.2021.810426",
-   "review": false
+   "review": false,
+   "category": "reference"
   },
   "haughton": {
    "short": "Haughton",
@@ -51,7 +54,8 @@
    "use": "Home of the NASA Haughton-Mars Project since 1997: field tests of technologies and operations for Mars exploration.",
    "reference": "Mars Institute, Haughton-Mars Project (HMP)",
    "url": "https://www.marsinstitute.no/hmp",
-   "review": false
+   "review": false,
+   "category": "reference"
   },
   "makgadikgadi": {
    "short": "Makgadikgadi",
@@ -62,7 +66,8 @@
    "use": "Analogue for Martian playa and salt deposits: groundwater circulation and layered lake sediments.",
    "reference": "Schmidt et al. (2023), Frontiers in Astronomy and Space Sciences. doi:10.3389/fspas.2023.1108386",
    "url": "https://doi.org/10.3389/fspas.2023.1108386",
-   "review": false
+   "review": false,
+   "category": "new"
   },
   "mcmurdo": {
    "short": "McMurdo",
@@ -74,7 +79,8 @@
    "use": "Study of cold, dry surface processes and of life at its limits.",
    "reference": "Salvatore & Levy (2021), Mars Geological Enigmas, Elsevier. doi:10.1016/B978-0-12-820245-6.00011-2",
    "url": "https://doi.org/10.1016/B978-0-12-820245-6.00011-2",
-   "review": false
+   "review": false,
+   "category": "reference"
   },
   "campo-piedra-pomez": {
    "short": "Piedra Pómez",
@@ -86,7 +92,8 @@
    "use": "Study wind erosion and yardang formation comparable to Martian yardangs.",
    "reference": "Favaro et al. (2020), Icarus 346, 113765. doi:10.1016/j.icarus.2020.113765",
    "url": "https://doi.org/10.1016/j.icarus.2020.113765",
-   "review": false
+   "review": false,
+   "category": "new"
   },
   "salar-pajonales": {
    "short": "Pajonales",
@@ -97,7 +104,8 @@
    "use": "Explore what the last near-surface oases for microbial life on Mars could have looked like.",
    "reference": "Frontiers in Astronomy and Space Sciences (2022). doi:10.3389/fspas.2021.797591",
    "url": "https://doi.org/10.3389/fspas.2021.797591",
-   "review": false
+   "review": false,
+   "category": "new"
   },
   "iceland-highlands": {
    "short": "Askja",
@@ -108,7 +116,8 @@
    "use": "Volcanic geology training and field tests on barren basaltic terrain. The square includes part of Lake Öskjuvatn (~15% of its area).",
    "reference": "Exploration Museum, Apollo astronaut training in Iceland; Smithsonian GVP, Askja (373060)",
    "url": "https://www.explorationmuseum.com/astronaut-training/",
-   "review": false
+   "review": false,
+   "category": "reference"
   },
   "meteor-crater": {
    "short": "Meteor Crater",
@@ -119,7 +128,8 @@
    "use": "Apollo astronauts trained here with USGS geologists; it is still used for astronaut geology training.",
    "reference": "Vaughan et al. (2019), GSA Field Guide 55. doi:10.1130/2019.0055(12)",
    "url": "https://doi.org/10.1130/2019.0055(12)",
-   "review": false
+   "review": false,
+   "category": "reference"
   },
   "craters-of-the-moon": {
    "short": "Craters of the Moon",
@@ -130,7 +140,8 @@
    "use": "In August 1969, Apollo 14 astronauts trained here in volcanic geology; it remains a NASA research site.",
    "reference": "U.S. National Park Service, Space Exploration Research and Astronaut Training",
    "url": "https://www.nps.gov/crmo/learn/historyculture/space-exploration-research-and-astronaut-training.htm",
-   "review": false
+   "review": false,
+   "category": "reference"
   },
   "lanzarote": {
    "short": "Lanzarote",
@@ -141,7 +152,8 @@
    "use": "Lunar regolith simulant (LZS-1) for construction and resource-use tests.",
    "reference": "Alberquilla et al. (2022), Scientific Reports 12, 16470. doi:10.1038/s41598-022-20960-8",
    "url": "https://doi.org/10.1038/s41598-022-20960-8",
-   "review": false
+   "review": false,
+   "category": "reference"
   },
   "mauna-kea": {
    "short": "Mauna Kea",
@@ -152,7 +164,12 @@
    "use": "NASA–CSA field tests of excavation and resource-extraction (ISRU) technologies, 2010 and 2012.",
    "reference": "ten Kate et al. (2013), Journal of Aerospace Engineering 26(1), 183–196. doi:10.1061/(ASCE)AS.1943-5525.0000200",
    "url": "https://doi.org/10.1061/(ASCE)AS.1943-5525.0000200",
-   "review": false
+   "review": false,
+   "category": "reference"
   }
+ },
+ "categories": {
+  "reference": "Reference analogue: a well-studied site already used by NASA or other space agencies; used as a benchmark for the index.",
+  "new": "New candidate: a less-studied site that is not an established analogue test site."
  }
 }
