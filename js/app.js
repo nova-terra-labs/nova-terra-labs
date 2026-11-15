@@ -347,6 +347,16 @@
         </div>
       </div>
 
+      <div class="card panel" id="twin-card">
+        <h3>Earth vs ${esc(t.body)}, side by side <small>SAME 10 × 10 KM SQUARE · SAME VERTICAL SCALE · HEIGHT ABOVE LOWEST POINT</small></h3>
+        <div class="viewer-tools"><div class="chips" id="tx">${[1, 2, 5].map((v) => `<button class="chip${v === 2 ? " on" : ""}" data-x="${v}">×${v}</button>`).join("")}</div><span class="note">Rotate one view and the other follows.</span></div>
+        <div class="twin">
+          <div><div class="twin-label"><span class="tag ${s.analog_of.toLowerCase()}">Earth</span> ${esc(s.info.short)} <span class="muted">· relief ${fmt(m("elevation_max_m") - m("elevation_min_m"), 0)} m</span></div><div id="twin-earth" class="frame3d twin-frame"></div></div>
+          <div><div class="twin-label"><span class="tag ${t.body.toLowerCase()}">${esc(t.body)}</span> ${esc(t.name.split(" — ")[0])} <span class="muted">· relief ${fmt(mv(t, "elevation_max_m") - mv(t, "elevation_min_m"), 0)} m</span></div><div id="twin-target" class="frame3d twin-frame"></div></div>
+        </div>
+        <p class="note" style="margin-top:8px">Target terrain: ${t.body === "Mars" ? "USGS CTX DTM of Jezero crater (20 m)" : "NASA LRO LOLA 5 m DEM, Site 04 (Shackleton rim)"}, resampled to ≈30 m like the Earth DEM. Earth in Sentinel-2 true colour; the ${esc(t.body)} target shaded by height.</p>
+      </div>
+
       <div class="grid-2">
         <div class="card panel">
           <h3>Site metrics <small>SITE · ${esc(t.body.toUpperCase())} TARGET</small></h3>
@@ -364,6 +374,7 @@
         </div>
         <div class="card panel">
           <h3>Similarity breakdown <small>VS ${esc(t.name.toUpperCase())}</small></h3>
+          <div id="radar" class="radar" role="img" aria-label="Radar chart of the four partial scores"></div>
           <div class="bars">
             ${COMPONENT_ORDER.map((k) => `<div class="bar-row"><span>${METRIC_LABELS[k][0]} <span class="muted">×${w[k]}</span> ${info(k)}</span><div class="bar"><div style="width:${Math.max(0, Math.min(100, comp[k]))}%"></div></div><span class="v">${fmt(comp[k], 1)}</span></div>`).join("")}
           </div>
@@ -392,6 +403,8 @@
     mountViewer(s);
     mountMap(s);
     mountProfile(s, t);
+    mountRadar(s);
+    mountTwin(s, t);
   }
   function metric(label, v, unit, tv, d = 2, text) {
     return `<div class="metric"><small>${label}</small><b>${text ? esc(text) : `${fmt(v, d)} ${unit}`}</b>${tv !== null && tv !== undefined && !Number.isNaN(tv) ? `<i>target ${fmt(tv, d)} ${unit}</i>` : ""}</div>`;
@@ -473,6 +486,75 @@
     $("#vm").onclick = (e) => { const b = e.target.closest("[data-m]"); if (!b) return;
       document.querySelectorAll("#vm .chip").forEach((c) => c.classList.toggle("on", c === b));
       Plotly.restyle("terrain3d", { visible: b.dataset.m === "0" ? [true, false] : [false, true] }); };
+  }
+  // Radar of the four partial scores (100 = identical to the target); compared with the #1 site for the same target
+  function mountRadar(s) {
+    if (typeof Plotly === "undefined" || !$("#radar")) return;
+    const th = ["Slope", "Roughness", "Aridity", "Temp. range"];
+    const tr = (x, name, color, dash, fill) => ({ type: "scatterpolar", r: COMPONENT_ORDER.map((k) => x.similarity.components[k]).concat([x.similarity.components[COMPONENT_ORDER[0]]]),
+      theta: th.concat([th[0]]), name, mode: "lines+markers", line: { color, width: 2, dash }, marker: { size: 5, color }, fill, fillcolor: fill ? "rgba(183,255,0,.16)" : undefined,
+      hovertemplate: "%{theta}: %{r:.0f}/100<extra>" + esc(name) + "</extra>" });
+    const best = ranked(s.analog_of)[0];
+    const data = [tr(s, s.info.short, "#B7FF00", "solid", "toself")];
+    if (best.id !== s.id) data.push(tr(best, `#1 ${best.info.short}`, BODY_COLOR[s.analog_of], "dot"));
+    Plotly.newPlot("radar", data, {
+      paper_bgcolor: "rgba(0,0,0,0)", font: { color: "#EAF0F5", family: "Inter", size: 11 }, margin: { l: 40, r: 40, t: 20, b: 20 },
+      showlegend: data.length > 1, legend: { orientation: "h", y: -0.08, x: 0.5, xanchor: "center" },
+      polar: { bgcolor: "rgba(0,0,0,0)", radialaxis: { range: [0, 100], tickvals: [25, 50, 75, 100], gridcolor: "rgba(130,147,165,.25)", tickfont: { size: 9, color: "#8293A5" }, angle: 90 },
+        angularaxis: { gridcolor: "rgba(130,147,165,.25)", rotation: 90, direction: "clockwise" } },
+    }, { responsive: true, displaylogo: false, displayModeBar: false });
+  }
+  // Earth square and planetary target square in 3D, same size and same vertical scale
+  let targetTerrain = null;
+  const loadTargets = () => targetTerrain || (targetTerrain = window.NT_BUNDLE && window.NT_BUNDLE.targets ? Promise.resolve(window.NT_BUNDLE.targets)
+    : fetch("data/targets_terrain.json").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }));
+  function gridMesh(t, step, withRgb) {
+    const zq = b64(t.z_dm_u16, Uint16Array), rgb = withRgb && t.rgb_u8 ? b64(t.rgb_u8, Uint8Array) : null;
+    const cols = Math.ceil(t.nx / step), rows = Math.ceil(t.ny / step);
+    const dx = (t.x[1] - t.x[0]) / (t.nx - 1), dy = (t.y[1] - t.y[0]) / (t.ny - 1);
+    const X = [], Y = [], Z = [], VC = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const rr = Math.min(r * step, t.ny - 1), cc = Math.min(c * step, t.nx - 1), n = rr * t.nx + cc;
+      X.push(cc * dx); Y.push(rr * dy); Z.push(zq[n] / 10);
+      if (rgb) VC.push(`rgb(${rgb[n * 3]},${rgb[n * 3 + 1]},${rgb[n * 3 + 2]})`);
+    }
+    const I = [], J = [], K = [];
+    for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) { const a = r * cols + c, b = a + 1, d = a + cols, e = d + 1; I.push(a, b); J.push(b, e); K.push(d, d); }
+    return { X, Y, Z, VC, I, J, K, relief: Math.max(...Z), w: t.x[1] - t.x[0], h: t.y[1] - t.y[0] };
+  }
+  async function mountTwin(s, t) {
+    const a = $("#twin-earth"), b = $("#twin-target");
+    if (!a || typeof Plotly === "undefined") return;
+    if (!hasWebGL) { a.outerHTML = noGL("The 3D view"); b.outerHTML = noGL("The 3D view"); return; }
+    let es, ts;
+    try { es = await loadTerrain(s.id); ts = (await loadTargets())[s.target]; } catch (e) { es = null; }
+    if (!a.isConnected) return;
+    if (!es || !ts) { $("#twin-card").style.display = "none"; return; }
+    const E = gridMesh(es, 2, true), T = gridMesh(ts, 2, false);
+    const zmax = Math.max(E.relief, T.relief, 1), size = Math.max(E.w, E.h, T.w, T.h);
+    const light = { ambient: 0.5, diffuse: 0.9, fresnel: 0.1, roughness: 0.9, specular: 0.05 }, lp = { x: -5e4, y: 5e4, z: 1e5 };
+    const hov = "x %{x:.1f} km<br>y %{y:.1f} km<br>%{z:.0f} m above lowest point<extra></extra>";
+    const scale = t.body === "Mars" ? [[0, "#3a1d12"], [0.5, "#a8532c"], [1, "#f2b38a"]] : [[0, "#1d2229"], [0.5, "#7d848c"], [1, "#e6e9ec"]];
+    const layout = (ex) => ({ paper_bgcolor: "#050B14", margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, font: { color: "#EAF0F5", family: "Inter" },
+      scene: { aspectmode: "manual", aspectratio: { x: 1, y: 1, z: (zmax / (size * 1000)) * ex },
+        xaxis: { title: { text: "km" }, range: [0, size], gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
+        yaxis: { title: { text: "km" }, range: [0, size], gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
+        zaxis: { title: { text: "m" }, range: [0, zmax], gridcolor: "#1a2a3e", backgroundcolor: "#050B14", color: "#8293A5" },
+        camera: { eye: { x: 1.1, y: -1.1, z: 0.75 } } } });
+    const cfg = { responsive: true, displaylogo: false, displayModeBar: false };
+    await Plotly.newPlot(a, [{ type: "mesh3d", x: E.X, y: E.Y, z: E.Z, i: E.I, j: E.J, k: E.K, vertexcolor: E.VC, lighting: light, lightposition: lp, hovertemplate: hov }], layout(2), cfg);
+    await Plotly.newPlot(b, [{ type: "mesh3d", x: T.X, y: T.Y, z: T.Z, i: T.I, j: T.J, k: T.K, intensity: T.Z, colorscale: scale, showscale: false, lighting: light, lightposition: lp, hovertemplate: hov }], layout(2), cfg);
+    // keep both cameras in step
+    let syncing = false;
+    const link = (from, to) => from.on("plotly_relayout", (ev) => {
+      if (syncing || !ev["scene.camera"]) return;
+      syncing = true; Plotly.relayout(to, { "scene.camera": ev["scene.camera"] }).then(() => { syncing = false; });
+    });
+    link(a, b); link(b, a);
+    $("#tx").onclick = (e) => { const x = e.target.closest("[data-x]"); if (!x) return;
+      document.querySelectorAll("#tx .chip").forEach((c) => c.classList.toggle("on", c === x));
+      const z = (zmax / (size * 1000)) * Number(x.dataset.x);
+      Plotly.relayout(a, { "scene.aspectratio.z": z }); Plotly.relayout(b, { "scene.aspectratio.z": z }); };
   }
   function mountMap(s) {
     if (typeof L === "undefined") return;
@@ -582,7 +664,7 @@
       ${limitsCard()}
       ${resourcesCard()}
       <div class="card panel"><h3>Data sources</h3><ul class="src-list">${Object.keys(d.sources).map(sourceItem).join("")}</ul></div>
-      ${nextStep("02 Atlas", "Explore another site", "Go back to the globe and open any of the ${sites().length} field logs.", "#atlas", "Back to the Atlas")}
+      ${nextStep("02 Atlas", "Explore another site", `Go back to the globe and open any of the ${sites().length} field logs.`, "#atlas", "Back to the Atlas")}
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>DATA GENERATED ${esc((d.generated_utc || "").slice(0, 10))}</span></div>
     </section>`;
     if (typeof Plotly !== "undefined") ["Mars", "Moon"].forEach((b) => {
@@ -624,11 +706,61 @@
         <li><b>Caves and lava tubes:</b> map lava tubes at the volcanic sites against lunar pits seen by LRO.</li>
         <li><b>Global search:</b> run the same index on a grid over whole regions to find analogues no one has proposed yet.</li></ul></div>
       ${resourcesCard()}
-      <div class="card panel"><h3>Team</h3><p class="note"><b>NovaTerra Labs</b> — NASA Space Apps Challenge 2026: Fátima Herrera (team owner) and Romy Lostaunau, Peru. Data pipeline developed in Google Colab (Python); this app is a static site with no build step, ready for GitHub Pages.</p></div>
+      <div class="card panel"><h3>Team</h3><p class="note"><b>NovaTerra Labs</b> — NASA Space Apps Challenge 2026: Fátima Herrera (team owner) and Romy Lostaunau, Peru <svg class="flag-pe" viewBox="0 0 3 2" role="img" aria-label="Flag of Peru"><rect width="3" height="2" fill="#D91023"/><rect x="1" width="1" height="2" fill="#fff"/></svg>. Data pipeline developed in Google Colab (Python); this app is a static site with no build step, ready for GitHub Pages.</p></div>
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
     </section>`;
   }
   const step = (n, h, p) => `<div class="card panel step"><b>${n}</b><h3>${h}</h3><p>${p}</p></div>`;
+
+  // ---------- Guided tour: short notes that slide in as each part of the screen scrolls into view ----------
+  const TOUR = {
+    bridge: [
+      [".launcher", "Welcome aboard. We compare places on Earth with the Moon's south pole and Mars' Jezero crater. See our best analogues under Mission findings, choose a frontier below, or follow the mission path 01 → 04 at the top. These notes will guide you on every screen.", "append"],
+    ],
+    atlas: [
+      [".page-title", "Click a dot on the globe, or a card under it, to see that site's score in Site insight.", "append"],
+      [".search", "Pick a target (Moon or Mars) and filter by site type and environment.", "append"],
+      [".atlas-next", "When you find an interesting site, open its field log for the full data.", "prepend"],
+    ],
+    field: [
+      [".field-head", "The similarity score (0–100) says how close this square is to its planetary target. Use the selector to switch site."],
+      ["#viewer-slot", "Real terrain in 3D: drag to rotate, and raise the vertical exaggeration to see the relief."],
+      ["#twin-card", "The Earth square next to the Moon or Mars square, at the same scale. Rotate one and the other follows."],
+      ["#radar", "Each axis is one partial score; the further out, the closer to the target. If this is not the #1 site, a dotted shape shows the #1 site for comparison."],
+      ["#profile", "A west–east cut through both squares."],
+    ],
+    compare: [
+      [".target-card", "These are the two planetary targets every Earth site is measured against.", "prepend"],
+      [".table-wrap", "All sites ranked. The four last columns are the partial scores behind each total."],
+      [".res-list", "Which of the challenge's suggested data resources we used."],
+    ],
+    about: [[".steps", "How the index is built, in four steps."]],
+  };
+  let tourObs = null;
+  const tourOn = () => { try { return localStorage.getItem("nt-tour") !== "off"; } catch (e) { return true; } };
+  function setTour(on) { try { localStorage.setItem("nt-tour", on ? "on" : "off"); } catch (e) { /* storage unavailable */ } }
+  function tour(name) {
+    if (tourObs) { tourObs.disconnect(); tourObs = null; }
+    document.querySelectorAll(".tour-note").forEach((n) => n.remove());
+    let pill = $("#tour-pill");
+    if (!pill) { pill = document.createElement("button"); pill.id = "tour-pill"; pill.className = "tour-pill"; document.body.appendChild(pill);
+      pill.onclick = () => { setTour(!tourOn()); tour(pill.dataset.route); }; }
+    pill.dataset.route = name;
+    const on = tourOn(), steps = (TOUR[name] || []).filter(([sel]) => $(sel, view));
+    pill.innerHTML = `<i>?</i> Guided tour <b>${on ? "ON" : "OFF"}</b>`;
+    pill.classList.toggle("off", !on);
+    if (!on || !steps.length) return;
+    tourObs = "IntersectionObserver" in window ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("show"); tourObs.unobserve(e.target); } }), { threshold: 0.6 }) : null;
+    steps.forEach(([sel, text, where], i) => {
+      const n = document.createElement("div");
+      n.className = "tour-note";
+      n.innerHTML = `<span class="tour-n">${i + 1}/${steps.length}</span><span>${esc(text)}</span><button aria-label="Hide guided tour" title="Hide guided tour">×</button>`;
+      n.querySelector("button").onclick = () => { setTour(false); tour(name); };
+      const el = $(sel, view);
+      if (where === "append") el.appendChild(n); else if (where === "prepend") el.insertBefore(n, el.firstChild); else el.parentNode.insertBefore(n, el);
+      if (tourObs) tourObs.observe(n); else n.classList.add("show");
+    });
+  }
 
   // ---------- router ----------
   function route() {
@@ -644,6 +776,7 @@
     view.classList.toggle("is-bridge", name === "bridge");
     window.scrollTo(0, 0);
     ({ bridge: renderBridge, atlas: renderAtlas, field: renderField, compare: renderCompare, about: renderAbout })[name](param || undefined);
+    tour(name);
   }
 
   load().then(() => { window.addEventListener("hashchange", route); route(); })
