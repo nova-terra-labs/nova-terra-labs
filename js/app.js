@@ -770,6 +770,15 @@
       </div>
       <div class="card panel"><h3>How the search works</h3><p class="note">${esc(D.method)} Ocean cells are skipped (${Z.skipped_ocean_cells}). A cell is marked <b>New find</b> when it is more than ${NEW_FIND_KM} km from all of our ${sites().length} sites. Scores are for a 10 × 10 km square: a high score is a lead to check on satellite imagery and in the field, not a confirmed analogue. Generated ${esc((Z.generated_utc || "").slice(0, 10))}.</p></div>
       ${ML ? mlCard(ML, Z) : ""}
+      <div class="card panel" id="live-card"><h3>Analyse any place on Earth <span class="tag cat-new" style="margin-left:6px">APPROXIMATE</span> <small>LIVE · NASA POWER + AWS TERRAIN TILES</small></h3>
+        <p class="note">Click anywhere on the map, or type coordinates, to score a 10 × 10 km square against Mars and the Moon and find the most similar places among our ${sites().length} sites and ${ML ? ML.n_cells : "the"} zone cells (k-nearest neighbours). Climate is the same NASA POWER data as in our pipeline; terrain comes from the AWS Terrain Tiles elevation model, because the Copernicus DEM cannot be read from a browser. <b>Live scores are therefore approximate</b> and can differ from the official scores (see the comparison below the result).</p>
+        <div class="live-grid">
+          <div><div id="live-map" class="map live-map"></div>
+            <div class="live-form"><label>Lat <input id="live-lat" type="number" step="0.0001" value="-22.8592"></label><label>Lon <input id="live-lon" type="number" step="0.0001" value="-68.9513"></label><button class="btn btn-primary" id="live-go">Analyse <span>→</span></button></div></div>
+          <div id="live-out"><p class="muted">Choose a place and press Analyse.</p></div>
+        </div>
+        <div id="live-cal"></div>
+      </div>
       ${nextStep("02 Atlas", "Explore the analogue sites", `Go back to the globe and open any of the ${sites().length} field logs.`, "#atlas", "Back to the Atlas")}
       <div class="footer-line"><span>NASA INTERNATIONAL <span class="lime">SPACE APPS CHALLENGE 2026</span></span><span>EXPLORE · OBSERVE · COMPARE</span></div>
     </section>`;
@@ -819,6 +828,144 @@
       Object.values(rects).forEach((r) => { r._base = styleFor(...r._st); if (r !== sel) r.setStyle(r._base); }); };
     $("#disc-top").onclick = (e) => { const li = e.target.closest("li[data-r]"); if (li) pick(cells[Number(li.dataset.r) - 1], true); };
     pick(top[0]);
+    mountLive();
+  }
+
+  // ---------- Live analysis of any place (approximate) ----------
+  const LIVE_W = { slope_mean_deg: 0.3, roughness_m: 0.3, precip_annual_mm: 0.3, temp_range_c: 0.1 };
+  function liveSimilarity(m, t) {
+    const parts = {};
+    COMPONENT_ORDER.forEach((k) => {
+      const a = Math.abs(m[k]), b = Math.abs(mv(t, k));
+      parts[k] = k === "precip_annual_mm" ? Math.exp(-Math.max(m[k], 0) / 200) : (a === 0 && b === 0 ? 1 : Math.min(a, b) / Math.max(a, b));
+    });
+    const ws = state.data.similarity_method && state.data.similarity_method.weights || LIVE_W;
+    const W = COMPONENT_ORDER.reduce((t2, k) => t2 + ws[k], 0);
+    return { score: (100 * COMPONENT_ORDER.reduce((t2, k) => t2 + ws[k] * parts[k], 0)) / W, parts };
+  }
+  async function tilePixels(z, x, y) {
+    const r = await fetch(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`);
+    if (!r.ok) throw new Error("elevation tile " + r.status);
+    const bmp = await createImageBitmap(await r.blob());
+    const cv = document.createElement("canvas"); cv.width = 256; cv.height = 256;
+    const ctx = cv.getContext("2d"); ctx.drawImage(bmp, 0, 0);
+    const d = ctx.getImageData(0, 0, 256, 256).data, h = new Float32Array(65536);
+    for (let i = 0; i < 65536; i++) h[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
+    return h;
+  }
+  // 10 x 10 km elevation grid at 30 m, resampled (bilinear) from Terrarium tiles at zoom 13
+  async function liveDem(lat, lon) {
+    const z = 13, n = 2 ** z, R = 6378137, half = 5000;
+    const mx = (lo) => ((lo + 180) / 360) * n * 256;
+    const my = (la) => { const s = Math.sin((la * Math.PI) / 180); return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n * 256; };
+    const cx = mx(lon), cy = my(lat);
+    const mpp = (2 * Math.PI * R * Math.cos((lat * Math.PI) / 180)) / (n * 256);  // ground metres per pixel
+    const hp = half / mpp;
+    const tx0 = Math.floor((cx - hp - 1) / 256), tx1 = Math.floor((cx + hp + 1) / 256), ty0 = Math.floor((cy - hp - 1) / 256), ty1 = Math.floor((cy + hp + 1) / 256);
+    const tiles = {};
+    const jobs = [];
+    for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++) jobs.push(tilePixels(z, ((tx % n) + n) % n, ty).then((h) => { tiles[tx + "/" + ty] = h; }));
+    await Promise.all(jobs);
+    const at = (px, py) => { const tx = Math.floor(px / 256), ty = Math.floor(py / 256), t = tiles[tx + "/" + ty]; return t[(Math.floor(py) - ty * 256) * 256 + (Math.floor(px) - tx * 256)]; };
+    const bil = (px, py) => { const x0 = Math.floor(px - 0.5), y0 = Math.floor(py - 0.5), fx = px - 0.5 - x0, fy = py - 0.5 - y0;
+      return at(x0, y0) * (1 - fx) * (1 - fy) + at(x0 + 1, y0) * fx * (1 - fy) + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy; };
+    const N = Math.round((2 * half) / 30), step = (2 * hp) / N, g = new Float64Array(N * N);
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) g[r * N + c] = bil(cx - hp + (c + 0.5) * step, cy - hp + (r + 0.5) * step);
+    return { g, N, d: (2 * half) / N };
+  }
+  function liveTerrain({ g, N, d }) {
+    const Z = (r, c) => g[r * N + c];
+    let ssum = 0, emin = Infinity, emax = -Infinity, esum = 0;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const v = Z(r, c); esum += v; emin = Math.min(emin, v); emax = Math.max(emax, v);
+      const gx = c === 0 ? (Z(r, 1) - v) / d : c === N - 1 ? (v - Z(r, c - 1)) / d : (Z(r, c + 1) - Z(r, c - 1)) / (2 * d);
+      const gy = r === 0 ? (Z(1, c) - v) / d : r === N - 1 ? (v - Z(r - 1, c)) / d : (Z(r + 1, c) - Z(r - 1, c)) / (2 * d);
+      ssum += (Math.atan(Math.hypot(gx, gy)) * 180) / Math.PI;
+    }
+    const res = [];
+    for (let r = 2; r < N - 2; r++) for (let c = 2; c < N - 2; c++) {
+      let m = 0; for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) m += Z(r + i, c + j);
+      res.push(Z(r, c) - m / 25);
+    }
+    const mu = res.reduce((a, b) => a + b, 0) / res.length;
+    const sd = Math.sqrt(res.reduce((a, b) => a + (b - mu) ** 2, 0) / res.length);
+    return { elevation_mean_m: esum / (N * N), elevation_min_m: emin, elevation_max_m: emax, slope_mean_deg: ssum / (N * N), roughness_m: sd };
+  }
+  async function liveClimate(lat, lon, elev) {
+    const u = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR&community=AG&latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&start=20150101&end=20241231&format=JSON`;
+    const r = await fetch(u); if (!r.ok) throw new Error("NASA POWER " + r.status);
+    const j = await r.json(), P = j.properties.parameter, ge = (j.geometry && j.geometry.coordinates || [])[2];
+    const ok = (v) => v !== null && v !== undefined && v > -900;
+    const adj = ge !== undefined && ge !== null ? (-6.5 * (elev - ge)) / 1000 : 0;
+    let tmax = 0, tmin = 0, rng = 0, n = 0; const yr = {};
+    Object.keys(P.T2M_MAX).forEach((dte) => {
+      const a = P.T2M_MAX[dte], b = P.T2M_MIN[dte], p = P.PRECTOTCORR[dte];
+      if (ok(a) && ok(b)) { tmax += a; tmin += b; rng += a - b; n++; }
+      if (ok(p)) yr[dte.slice(0, 4)] = (yr[dte.slice(0, 4)] || 0) + p;
+    });
+    const ys = Object.values(yr);
+    return { temp_max_mean_c: tmax / n + adj, temp_min_mean_c: tmin / n + adj, temp_range_c: rng / n, precip_annual_mm: ys.reduce((a, b) => a + b, 0) / ys.length, grid_elev: ge };
+  }
+  async function liveAnalyse(lat, lon, opts = {}) {
+    const terr = liveTerrain(await liveDem(lat, lon));
+    if (opts.terrainOnly) return terr;
+    const clim = await liveClimate(lat, lon, terr.elevation_mean_m);
+    const m = { ...terr, ...clim };
+    const T = state.data.targets;
+    return { m, mars: liveSimilarity(m, T.jezero), moon: liveSimilarity(m, T["lunar-south-pole"]) };
+  }
+  window.NTLive = { analyse: liveAnalyse };
+  // k-nearest neighbours among our sites and all zone cells (log-transformed, standardised features)
+  function liveNeighbours(m, k = 5) {
+    const ref = sites().map((s) => ({ kind: "site", s, v: COMPONENT_ORDER.map((q) => mv(s, q)) }));
+    const D = state.discover;
+    if (D) Object.entries(D.zones).forEach(([zid, Zn]) => Zn.cells.forEach((c) => ref.push({ kind: "cell", zid, c, v: COMPONENT_ORDER.map((q) => c[q]) })));
+    const X = ref.map((r) => r.v.map((v) => Math.log1p(Math.max(v, 0))));
+    const mu = COMPONENT_ORDER.map((_, j) => X.reduce((a, x) => a + x[j], 0) / X.length);
+    const sd = COMPONENT_ORDER.map((_, j) => Math.sqrt(X.reduce((a, x) => a + (x[j] - mu[j]) ** 2, 0) / X.length) || 1);
+    const q = COMPONENT_ORDER.map((k2, j) => (Math.log1p(Math.max(m[k2], 0)) - mu[j]) / sd[j]);
+    const dist = X.map((x, i) => ({ r: ref[i], d: Math.hypot(...x.map((v, j) => (v - mu[j]) / sd[j] - q[j])) })).sort((a, b) => a.d - b.d);
+    return { n: ref.length, top: dist.slice(0, k) };
+  }
+  function mountLive() {
+    const card = $("#live-card"); if (!card || typeof L === "undefined") return;
+    const lm = L.map("live-map", { scrollWheelZoom: false, worldCopyJump: true }).setView([-15, -65], 2);
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, attribution: "Imagery © Esri" }).addTo(lm);
+    let mk = null, sq = null;
+    const place = (la, lo) => {
+      $("#live-lat").value = la.toFixed(4); $("#live-lon").value = lo.toFixed(4);
+      const dl = 5 / 110.574, dn = 5 / (111.32 * Math.cos((la * Math.PI) / 180));
+      if (sq) sq.remove(); sq = L.rectangle([[la - dl, lo - dn], [la + dl, lo + dn]], { color: "#B7FF00", weight: 2, fill: false }).addTo(lm);
+      if (mk) mk.remove(); mk = L.circleMarker([la, lo], { radius: 4, color: "#B7FF00", fillOpacity: 1 }).addTo(lm);
+    };
+    lm.on("click", (e) => { const ln = ((e.latlng.lng + 540) % 360) - 180; place(e.latlng.lat, ln); run(); });
+    const card2 = state.livePrev; if (card2) place(card2[0], card2[1]);
+    async function run() {
+      const la = Number($("#live-lat").value), lo = Number($("#live-lon").value);
+      if (!(la >= -80 && la <= 80) || !(lo >= -180 && lo <= 180)) { $("#live-out").innerHTML = '<p class="note" style="color:#FF7A45">Enter a latitude between −80 and 80 and a longitude between −180 and 180.</p>'; return; }
+      state.livePrev = [la, lo]; place(la, lo);
+      $("#live-out").innerHTML = '<p class="muted">Downloading terrain and 10 years of NASA POWER climate… (5–15 s)</p>';
+      try {
+        const r = await liveAnalyse(la, lo);
+        if (!$("#live-out")) return;
+        const nb = liveNeighbours(r.m);
+        const nm = (x) => x.r.kind === "site" ? `<a href="#field-${x.r.s.id}">${esc(x.r.s.info.short)}</a> <span class="muted">(our site)</span>` : `Cell ${fmt(x.r.c.lat, 2)}°, ${fmt(x.r.c.lon, 2)}° <span class="muted">(${esc(state.discover.zones[x.r.zid].name.split(" (")[0])})</span>`;
+        const bars = (s) => COMPONENT_ORDER.map((k) => `<div class="bar-row"><span>${METRIC_LABELS[k][0]}</span><div class="bar"><div style="width:${Math.round(100 * s.parts[k])}%"></div></div><span class="v">${fmt(100 * s.parts[k], 0)}</span></div>`).join("");
+        $("#live-out").innerHTML = `<div class="eyebrow plain">${fmt(la, 4)}°, ${fmt(lo, 4)}° · approximate</div>
+          <div class="live-scores"><div><small>vs Mars (Jezero)</small><b style="color:${BODY_COLOR.Mars}">${fmt(r.mars.score, 1)}</b></div><div><small>vs Moon (south pole)</small><b style="color:${BODY_COLOR.Moon}">${fmt(r.moon.score, 1)}</b></div></div>
+          <p class="note">Slope ${fmt(r.m.slope_mean_deg, 1)}° · roughness ${fmt(r.m.roughness_m, 2)} m · temperature range ${fmt(r.m.temp_range_c, 1)} °C · precipitation ${fmt(r.m.precip_annual_mm, 0)} mm/yr · elevation ${fmt(r.m.elevation_mean_m, 0)} m</p>
+          <div class="bars">${bars(r.mars.score >= r.moon.score ? r.mars : r.moon)}</div>
+          <p class="note" style="margin-top:4px">Partial scores shown for ${r.mars.score >= r.moon.score ? "Mars" : "the Moon"}, the closer target.</p>
+          <div class="eyebrow plain" style="margin-top:12px">Most similar places (k-nearest neighbours, ${nb.n} places)</div>
+          <ol class="live-nb">${nb.top.map((x) => `<li>${nm(x)} <span class="muted">· distance ${fmt(x.d, 2)}</span></li>`).join("")}</ol>
+          <p class="note">Distance in standardised units over the four metrics: 0 = identical, below 0.5 = very similar.</p>`;
+      } catch (e) {
+        if ($("#live-out")) $("#live-out").innerHTML = `<p class="note" style="color:#FF7A45">Could not analyse this place (${esc(e.message)}). Ocean or very high latitudes are not supported; try again or choose another point.</p>`;
+      }
+    }
+    $("#live-go").onclick = run;
+    const cal = state.data && window.NT_LIVE_CAL;
+    if (cal) $("#live-cal").innerHTML = cal;
   }
 
   // ---------- About ----------
